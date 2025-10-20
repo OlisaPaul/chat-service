@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Request } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { User } from '../entities/user.entity';
@@ -8,25 +8,29 @@ import { User } from '../entities/user.entity';
 export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
-  @Post()
-  async createConversation(
+  @Post('private/:otherUserId')
+  async createPrivateConversation(
     @Request() req,
-    @Body() body: { otherExternalId: string },
+    @Param('otherUserId') otherUserId: string,
   ) {
     const currentUser = req.user as User;
-    const conversation = await this.conversationsService.createConversation(
+    const conversation = await this.conversationsService.createPrivateConversation(
       currentUser,
-      body.otherExternalId,
+      otherUserId,
     );
 
     return {
       id: conversation.id,
-      participants: conversation.participants.map(p => ({
-        id: p.id,
-        externalId: p.externalId,
-        name: p.name,
-        avatarUrl: p.avatarUrl,
-      })),
+      type: conversation.type,
+      participants: conversation.participants?.map(p => ({
+        id: p.user?.id,
+        externalId: p.user?.externalId,
+        name: p.user?.name,
+        avatarUrl: p.user?.avatarUrl,
+        role: p.role,
+      })) || [],
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
     };
   }
 

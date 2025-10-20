@@ -4,37 +4,50 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MessagesService } from './messages.service';
+import { ConversationsService } from '../conversations/conversations.service';
 import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({ cors: { origin: '*' } })
-export class MessagesGateway {
+export class MessagesGateway implements OnGatewayConnection {
   @WebSocketServer() server: Server;
 
   constructor(
     private messagesService: MessagesService,
+    private conversationsService: ConversationsService,
     private jwtService: JwtService,
   ) {}
 
-  // ✅ Authenticate and join user to room (conversation)
-  handleConnection(socket: Socket) {
+  // ✅ Authenticate and auto-join user to their conversation rooms
+  async handleConnection(socket: Socket) {
     console.log('🔌 New socket connection attempt...');
-  
+
     try {
       const token = socket.handshake.auth?.token;
       console.log('🔑 Token from client:', token);
-  
+
       if (!token) {
         console.log('❌ No token provided, disconnecting...');
         return socket.disconnect();
       }
-  
+
       const payload = this.jwtService.verify(token);
       console.log('✅ JWT verified:', payload);
-  
+
       socket.data.user = payload;
+
+      // Auto-join all user's conversation rooms
+      const user = await this.messagesService.findUserByExternalId(payload.sub);
+      const userConversations = await this.conversationsService.getUserConversations(user);
+
+      for (const conversation of userConversations) {
+        socket.join(`conversation:${conversation.id}`);
+        console.log(`📍 ${payload.name} joined conversation room: ${conversation.id}`);
+      }
+
       console.log(`🟢 ${payload.name} connected successfully via WebSocket`);
     } catch (err) {
       console.error('❌ WebSocket auth failed:', err.message);
@@ -42,13 +55,14 @@ export class MessagesGateway {
     }
   }
 
-  // ✅ Join a conversation room
+  // ✅ Join a conversation room (additional manual join)
   @SubscribeMessage('join')
   async handleJoin(
     @MessageBody() conversationId: number,
     @ConnectedSocket() socket: Socket,
   ) {
     socket.join(`conversation:${conversationId}`);
+    console.log(`📍 User joined conversation room: ${conversationId}`);
   }
 
   // ✅ Send a message and broadcast it to the room
@@ -70,5 +84,32 @@ export class MessagesGateway {
       .to(`conversation:${data.conversationId}`)
       .emit('new_message', saved);
     return saved;
+  }
+
+  // ✅ Optional: Typing indicators
+  @SubscribeMessage('typing_start')
+  async handleTypingStart(
+    @MessageBody() conversationId: number,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    const userPayload = socket.data.user;
+    socket.to(`conversation:${conversationId}`).emit('user_typing', {
+      userId: userPayload.sub,
+      userName: userPayload.name,
+      isTyping: true,
+    });
+  }
+
+  @SubscribeMessage('typing_stop')
+  async handleTypingStop(
+    @MessageBody() conversationId: number,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    const userPayload = socket.data.user;
+    socket.to(`conversation:${conversationId}`).emit('user_typing', {
+      userId: userPayload.sub,
+      userName: userPayload.name,
+      isTyping: false,
+    });
   }
 }

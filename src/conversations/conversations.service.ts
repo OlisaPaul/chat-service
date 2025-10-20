@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Conversation } from '../entities/conversation.entity';
+import { Conversation, ConversationType } from '../entities/conversation.entity';
+import { ConversationParticipant, ParticipantRole } from '../entities/conversation-participant.entity';
 import { User } from '../entities/user.entity';
 import { UsersService } from '../users/users.service';
 
@@ -10,6 +11,8 @@ export class ConversationsService {
   constructor(
     @InjectRepository(Conversation)
     private conversationsRepository: Repository<Conversation>,
+    @InjectRepository(ConversationParticipant)
+    private participantsRepository: Repository<ConversationParticipant>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private usersService: UsersService,
@@ -19,13 +22,13 @@ export class ConversationsService {
     return participantIds.sort((a, b) => a - b).join(',');
   }
 
-  async createConversation(currentUser: User, otherExternalId: string) {
+  async createPrivateConversation(currentUser: User, otherExternalId: string): Promise<Conversation> {
     // Ensure the other user exists
     let otherUser = await this.usersRepository.findOne({
       where: { externalId: otherExternalId },
     });
 
-    // Create Bob if he doesn't exist yet
+    // Create user if they don't exist yet
     if (!otherUser) {
       otherUser = this.usersRepository.create({
         externalId: otherExternalId,
@@ -45,38 +48,70 @@ export class ConversationsService {
     });
 
     if (!conversation) {
-      // Create new conversation
+      // Create new private conversation
       conversation = this.conversationsRepository.create({
+        type: 'private' as ConversationType,
         participantIdsHash,
-        participants: [currentUser, otherUser],
       });
       conversation = await this.conversationsRepository.save(conversation);
+
+      // Create participant records
+      const participants = [
+        this.participantsRepository.create({
+          conversation,
+          user: currentUser,
+          role: 'member' as ParticipantRole,
+        }),
+        this.participantsRepository.create({
+          conversation,
+          user: otherUser,
+          role: 'member' as ParticipantRole,
+        }),
+      ];
+      await this.participantsRepository.save(participants);
+
+      // Reload conversation with participants
+      conversation = await this.conversationsRepository.findOne({
+        where: { id: conversation.id },
+        relations: ['participants', 'participants.user'],
+      });
     }
 
-    return conversation;
+    return conversation!;
   }
 
   async getUserConversations(user: User) {
-    const conversations = await this.conversationsRepository.find({
-      where: {
-        participants: { id: user.id },
-      },
-      relations: ['participants'],
-      order: { createdAt: 'DESC' },
+    const participants = await this.participantsRepository.find({
+      where: { user: { id: user.id } },
+      relations: ['conversation', 'conversation.participants', 'conversation.participants.user'],
+      order: { conversation: { updatedAt: 'DESC' } },
     });
 
-    // For now, return basic conversation info
-    // TODO: Add last message preview when messages are implemented
-    return conversations.map(conversation => ({
-      id: conversation.id,
-      participants: conversation.participants.map(p => ({
-        id: p.id,
-        externalId: p.externalId,
-        name: p.name,
-        avatarUrl: p.avatarUrl,
-      })),
-      createdAt: conversation.createdAt,
-      // TODO: Add lastMessage when messages are implemented
-    }));
+    return participants.map(participant => {
+      const conversation = participant.conversation;
+      return {
+        id: conversation.id,
+        type: conversation.type,
+        participants: conversation.participants.map(p => ({
+          id: p.user.id,
+          externalId: p.user.externalId,
+          name: p.user.name,
+          avatarUrl: p.user.avatarUrl,
+          role: p.role,
+        })),
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
+        // TODO: Add lastMessage when messages are implemented
+      };
+    });
+  }
+
+  async getConversationById(id: number, user: User): Promise<Conversation | null> {
+    const participant = await this.participantsRepository.findOne({
+      where: { conversation: { id }, user: { id: user.id } },
+      relations: ['conversation', 'conversation.participants', 'conversation.participants.user'],
+    });
+
+    return participant?.conversation || null;
   }
 }

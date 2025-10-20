@@ -1,18 +1,18 @@
-import { config } from 'dotenv';
+import {config} from 'dotenv'
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
-import { User } from './entities/user.entity.js';
-import { Conversation } from './entities/conversation.entity.js';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { User } from './entities/user.entity';
+import { Conversation } from './entities/conversation.entity';
+import { ConversationParticipant } from './entities/conversation-participant.entity';
 import { Message } from './messages/message.entity';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { UsersModule } from './users/users.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { MessagesModule } from './messages/messages.module';
-
-config();
+config()
 
 @Module({
   imports: [
@@ -23,8 +23,9 @@ config();
       username: process.env.MYSQL_USER,
       password: process.env.MYSQL_PASS,
       database: process.env.MYSQL_DB,
-      entities: [User, Conversation, Message, Message],
+      entities: [User, Conversation, ConversationParticipant, Message],
       synchronize: true,
+      dropSchema: process.env.DROP_SCHEMA === 'true',
     }),
     PassportModule.register({ defaultStrategy: 'jwt-chat' }),
     UsersModule,
