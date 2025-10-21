@@ -25,7 +25,7 @@ config()
       database: process.env.MYSQL_DB,
       entities: [User, Conversation, ConversationParticipant, Message],
       synchronize: true,
-      dropSchema: process.env.DROP_SCHEMA === 'true',
+      // dropSchema: process.env.DROP_SCHEMA === 'true', // Commented out for production
     }),
     PassportModule.register({ defaultStrategy: 'jwt-chat' }),
     UsersModule,

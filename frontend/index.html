@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chat - Alice & Bob</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 400px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .user-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .user-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .user-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .user-btn:not(.active) {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .status {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .chat-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message.sent {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.received {
+            background: white;
+            color: #333;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .typing-indicator {
+            font-style: italic;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            outline: none;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .message-input:focus {
+            border-color: #007bff;
+        }
+
+        .send-btn {
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .send-btn:hover {
+            background: #0056b3;
+        }
+
+        .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+            transition: background 0.3s;
+        }
+
+        .connection-status.connected {
+            background: #4CAF50;
+        }
+
+        .connection-status.disconnected {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="user-selector">
+                <button class="user-btn" id="alice-btn">Alice</button>
+                <button class="user-btn" id="bob-btn">Bob</button>
+            </div>
+            <div class="status" id="status">Select a user to start chatting</div>
+        </div>
+
+        <div class="chat-area" id="chat-area">
+            <div class="connection-status" id="connection-status"></div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" class="message-input" id="message-input" placeholder="Type a message..." disabled>
+            <button class="send-btn" id="send-btn" disabled>Send</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+        // Configuration
+        const API_BASE = 'http://localhost:3001';
+        const WS_URL = 'http://localhost:3001';
+
+        // JWT tokens (freshly generated)
+        const tokens = {
+            alice: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmFsaWNlIiwibmFtZSI6IkFsaWNlIiwiaWF0IjoxNzYwOTkzOTEwLCJleHAiOjE3NjE1OTg3MTB9.xZbEB9kvDo0dA0PfwB6V3Se_FfUNccNF70h2b37KvX8',
+            bob: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmJvYiIsIm5hbWUiOiJCb2IiLCJpYXQiOjE3NjA5OTM5MTAsImV4cCI6MTc2MTU5ODcxMH0.Eq1gkxazB-sn7P3aMjw2eonywL69mZRS_6BNgbWV8O8'
+        };
+
+        // State
+        let currentUser = null;
+        let socket = null;
+        let conversationId = null;
+        let typingTimeout = null;
+
+        // DOM elements
+        const aliceBtn = document.getElementById('alice-btn');
+        const bobBtn = document.getElementById('bob-btn');
+        const statusEl = document.getElementById('status');
+        const chatArea = document.getElementById('chat-area');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const connectionStatus = document.getElementById('connection-status');
+
+        // Initialize
+        function init() {
+            aliceBtn.addEventListener('click', () => selectUser('alice'));
+            bobBtn.addEventListener('click', () => selectUser('bob'));
+            sendBtn.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', handleKeyPress);
+            messageInput.addEventListener('input', handleTyping);
+        }
+
+        // Select user
+        async function selectUser(user) {
+            currentUser = user;
+
+            // Clear previous messages
+            chatArea.innerHTML = '<div class="connection-status" id="connection-status"></div>';
+
+            // Update UI
+            aliceBtn.classList.toggle('active', user === 'alice');
+            bobBtn.classList.toggle('active', user === 'bob');
+            statusEl.textContent = `Connecting as ${user.charAt(0).toUpperCase() + user.slice(1)}...`;
+
+            // Enable input
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+
+            // Connect to WebSocket
+            connectWebSocket();
+
+            // Create/get conversation
+            await createConversation();
+        }
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            if (socket) socket.disconnect();
+
+            socket = io(WS_URL, {
+                auth: { token: tokens[currentUser] },
+                transports: ['websocket', 'polling'],
+            });
+
+            socket.on('connect', () => {
+                console.log(`${currentUser} connected`);
+                statusEl.textContent = `Connected as ${currentUser.charAt(0).toUpperCase() + currentUser.slice(1)}`;
+                connectionStatus.className = 'connection-status connected';
+            });
+
+            socket.on('disconnect', () => {
+                console.log(`${currentUser} disconnected`);
+                statusEl.textContent = `Disconnected - trying to reconnect...`;
+                connectionStatus.className = 'connection-status disconnected';
+            });
+
+            socket.on('new_message', (message) => {
+                // Determine if this message was sent by the current user
+                const isSentByMe = message.senderName === currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
+                displayMessage({...message, sentByMe: isSentByMe});
+            });
+
+            socket.on('user_typing', (data) => {
+                showTypingIndicator(data);
+            });
+        }
+
+        // Create conversation
+        async function createConversation() {
+            try {
+                const otherUser = currentUser === 'alice' ? 'appA:bob' : 'appA:alice';
+                const response = await fetch(`${API_BASE}/conversations/private/${otherUser}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${tokens[currentUser]}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                const data = await response.json();
+                conversationId = data.id;
+                console.log('Conversation created:', data);
+
+                // Load existing messages
+                await loadMessages();
+            } catch (error) {
+                console.error('Failed to create conversation:', error);
+            }
+        }
+
+        // Load existing messages
+        async function loadMessages() {
+            if (!conversationId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/messages/${conversationId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${tokens[currentUser]}`,
+                    },
+                });
+
+                let messages = await response.json();
+                messages = messages.reverse()
+                console.log('Loaded messages:', messages);
+
+                // Clear chat area and add connection status back
+                chatArea.innerHTML = '<div class="connection-status" id="connection-status"></div>';
+                const connectionStatus = document.getElementById('connection-status');
+                if (socket && socket.connected) {
+                    connectionStatus.className = 'connection-status connected';
+                }
+
+                // Display loaded messages
+                messages.forEach(message => {
+                    // Determine if this message was sent by the current user
+                    const isSentByMe = message.senderName === currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
+                    displayMessage({...message, sentByMe: isSentByMe});
+                });
+            } catch (error) {
+                console.error('Failed to load messages:', error);
+            }
+        }
+
+        // Send message
+        async function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content || !conversationId) return;
+
+            try {
+                // Send via WebSocket
+                socket.emit('send_message', {
+                    conversationId: conversationId,
+                    content: content,
+                });
+
+                // Clear input
+                messageInput.value = '';
+                stopTyping();
+            } catch (error) {
+                console.error('Failed to send message:', error);
+            }
+        }
+
+        // Handle key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Handle typing
+        function handleTyping() {
+            if (!socket || !conversationId) return;
+
+            // Send typing start
+            socket.emit('typing_start', conversationId);
+
+            // Clear previous timeout
+            if (typingTimeout) clearTimeout(typingTimeout);
+
+            // Set timeout to stop typing
+            typingTimeout = setTimeout(stopTyping, 1000);
+        }
+
+        // Stop typing
+        function stopTyping() {
+            if (socket && conversationId) {
+                socket.emit('typing_stop', conversationId);
+            }
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+                typingTimeout = null;
+            }
+        }
+
+        // Display message
+        function displayMessage(message) {
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${message.sentByMe ? 'sent' : 'received'}`;
+
+            const contentEl = document.createElement('div');
+            contentEl.textContent = message.content;
+
+            const timeEl = document.createElement('div');
+            timeEl.className = 'message-time';
+            timeEl.textContent = new Date(message.createdAt).toLocaleTimeString();
+
+            messageEl.appendChild(contentEl);
+            messageEl.appendChild(timeEl);
+
+            chatArea.appendChild(messageEl);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator(data) {
+            // Remove existing typing indicators
+            const existing = document.querySelector('.typing-indicator');
+            if (existing) existing.remove();
+
+            if (data.isTyping && data.userId !== `appA:${currentUser}`) {
+                const typingEl = document.createElement('div');
+                typingEl.className = 'typing-indicator';
+                typingEl.textContent = `${data.userName} is typing...`;
+                chatArea.appendChild(typingEl);
+            }
+        }
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>

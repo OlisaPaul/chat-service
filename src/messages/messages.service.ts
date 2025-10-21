@@ -21,14 +21,20 @@ export class MessagesService {
   }
 
   async sendMessage(user: User, conversationId: number, content: string) {
+    // Check if user is part of the conversation using the new participant system
+    const participant = await this.convoRepo
+      .createQueryBuilder('c')
+      .leftJoin('c.participants', 'p')
+      .where('c.id = :conversationId', { conversationId })
+      .andWhere('p.user.id = :userId', { userId: user.id })
+      .getOne();
+
+    if (!participant) throw new NotFoundException('User not part of this conversation');
+
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId },
-      relations: ['participants'],
     });
     if (!convo) throw new NotFoundException('Conversation not found');
-
-    const isParticipant = convo.participants.some((p) => p.id === user.id);
-    if (!isParticipant) throw new NotFoundException('User not part of this conversation');
 
     const message = this.messageRepo.create({
       conversation: convo,
@@ -40,10 +46,20 @@ export class MessagesService {
   }
 
   async getMessages(conversationId: number, currentUser: User, limit = 20, offset = 0) {
+    // First check if user is part of the conversation
+    const participant = await this.convoRepo
+      .createQueryBuilder('c')
+      .leftJoin('c.participants', 'p')
+      .where('c.id = :conversationId', { conversationId })
+      .andWhere('p.user.id = :userId', { userId: currentUser.id })
+      .getOne();
+
+    if (!participant) throw new NotFoundException('User not part of this conversation');
+
     const messages = await this.messageRepo.find({
       where: { conversation: { id: conversationId } },
       relations: ['sender'],
-      order: { createdAt: 'ASC' },
+      order: { createdAt: 'DESC' },
       skip: offset,
       take: limit,
     });

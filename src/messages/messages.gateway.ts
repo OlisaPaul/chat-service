@@ -80,6 +80,7 @@ export class MessagesGateway implements OnGatewayConnection {
       data.conversationId,
       data.content,
     );
+    // Broadcast to all clients in the conversation room (including sender)
     this.server
       .to(`conversation:${data.conversationId}`)
       .emit('new_message', saved);

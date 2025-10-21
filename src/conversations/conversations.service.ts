@@ -37,47 +37,60 @@ export class ConversationsService {
       await this.usersRepository.save(otherUser);
     }
 
+    // Check if a private conversation already exists between these two users
+    // Use a query that joins participants to find existing conversations
+    const existingConversation = await this.conversationsRepository
+      .createQueryBuilder('c')
+      .leftJoin('c.participants', 'p1')
+      .leftJoin('c.participants', 'p2')
+      .where('c.type = :type', { type: 'private' })
+      .andWhere('p1.user.id = :user1Id', { user1Id: currentUser.id })
+      .andWhere('p2.user.id = :user2Id', { user2Id: otherUser.id })
+      .andWhere('p1.conversation.id = p2.conversation.id')
+      .getOne();
+
+    if (existingConversation) {
+      console.log('Found existing conversation:', existingConversation.id);
+      // Reload with full relations
+      return await this.conversationsRepository.findOne({
+        where: { id: existingConversation.id },
+        relations: ['participants', 'participants.user'],
+      }) as Conversation;
+    }
+
+    // Create new private conversation
+    console.log('Creating new conversation between users:', currentUser.id, otherUser.id);
+
     // Create sorted participant IDs for deterministic hash
     const participantIds = [currentUser.id, otherUser.id].sort((a, b) => a - b);
     const participantIdsHash = this.generateParticipantIdsHash(participantIds);
 
-    // Check if conversation already exists
-    let conversation = await this.conversationsRepository.findOne({
-      where: { participantIdsHash },
-      relations: ['participants'],
+    const conversation = this.conversationsRepository.create({
+      type: 'private' as ConversationType,
+      participantIdsHash,
     });
+    const savedConversation = await this.conversationsRepository.save(conversation);
 
-    if (!conversation) {
-      // Create new private conversation
-      conversation = this.conversationsRepository.create({
-        type: 'private' as ConversationType,
-        participantIdsHash,
-      });
-      conversation = await this.conversationsRepository.save(conversation);
+    // Create participant records
+    const participants = [
+      this.participantsRepository.create({
+        conversation: savedConversation,
+        user: currentUser,
+        role: 'member' as ParticipantRole,
+      }),
+      this.participantsRepository.create({
+        conversation: savedConversation,
+        user: otherUser,
+        role: 'member' as ParticipantRole,
+      }),
+    ];
+    await this.participantsRepository.save(participants);
 
-      // Create participant records
-      const participants = [
-        this.participantsRepository.create({
-          conversation,
-          user: currentUser,
-          role: 'member' as ParticipantRole,
-        }),
-        this.participantsRepository.create({
-          conversation,
-          user: otherUser,
-          role: 'member' as ParticipantRole,
-        }),
-      ];
-      await this.participantsRepository.save(participants);
-
-      // Reload conversation with participants
-      conversation = await this.conversationsRepository.findOne({
-        where: { id: conversation.id },
-        relations: ['participants', 'participants.user'],
-      });
-    }
-
-    return conversation!;
+    // Return conversation with participants
+    return await this.conversationsRepository.findOne({
+      where: { id: savedConversation.id },
+      relations: ['participants', 'participants.user'],
+    }) as Conversation;
   }
 
   async getUserConversations(user: User) {
