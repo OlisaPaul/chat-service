@@ -1,4 +1,4 @@
-import { Message } from '../message.entity';
+import { Message, MessageStatus } from '../message.entity';
 import { User } from '../../entities/user.entity';
 
 export class MessageResponseDto {
@@ -6,6 +6,7 @@ export class MessageResponseDto {
   content: string;
   senderName: string;
   sentByMe: boolean;
+  status: MessageStatus;
   createdAt: Date;
 
   constructor(message: Message, currentUser: User) {
@@ -13,6 +14,7 @@ export class MessageResponseDto {
     this.content = message.content;
     this.senderName = message.sender?.name ?? 'Unknown';
     this.sentByMe = message.sender?.id === currentUser.id;
+    this.status = message.status;
     this.createdAt = message.createdAt;
   }
 }

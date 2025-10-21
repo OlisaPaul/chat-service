@@ -80,11 +80,18 @@ export class MessagesGateway implements OnGatewayConnection {
       data.conversationId,
       data.content,
     );
+
+    // Mark message as delivered since recipient is connected
+    await this.messagesService.markMessageAsDelivered(saved.id);
+
+    // Get updated message with DELIVERED status
+    const updatedMessage = { ...saved, status: 'delivered' };
+
     // Broadcast to all clients in the conversation room (including sender)
     this.server
       .to(`conversation:${data.conversationId}`)
-      .emit('new_message', saved);
-    return saved;
+      .emit('new_message', updatedMessage);
+    return updatedMessage;
   }
 
   // ✅ Optional: Typing indicators
@@ -112,5 +119,26 @@ export class MessagesGateway implements OnGatewayConnection {
       userName: userPayload.name,
       isTyping: false,
     });
+  }
+
+  // ✅ Mark messages as read when user opens chat
+  @SubscribeMessage('mark_as_read')
+  async handleMarkAsRead(
+    @MessageBody() conversationId: number,
+    @ConnectedSocket() socket: Socket,
+  ) {
+    const userPayload = socket.data.user;
+    const user = await this.messagesService.findUserByExternalId(userPayload.sub);
+
+    const updatedMessages = await this.messagesService.markMessagesAsRead(conversationId, user);
+
+    // Broadcast status updates to the conversation room
+    this.server
+      .to(`conversation:${conversationId}`)
+      .emit('messages_read', {
+        conversationId,
+        userId: userPayload.sub,
+        updatedMessages,
+      });
   }
 }

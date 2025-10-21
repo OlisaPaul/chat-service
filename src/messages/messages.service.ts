@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Message } from './message.entity';
+import { Message, MessageStatus } from './message.entity';
 import { Conversation } from '../entities/conversation.entity';
 import { User } from '../entities/user.entity';
 import { MessageResponseDto } from './dto/message-response.dto';
@@ -40,6 +40,7 @@ export class MessagesService {
       conversation: convo,
       sender: user,
       content,
+      status: MessageStatus.SENT,
     });
     const saved = await this.messageRepo.save(message);
     return new MessageResponseDto(saved, user);
@@ -64,5 +65,48 @@ export class MessagesService {
       take: limit,
     });
     return messages.map((m) => new MessageResponseDto(m, currentUser));
+  }
+
+  async markMessagesAsRead(conversationId: number, user: User) {
+    // Check if user is part of the conversation
+    const participant = await this.convoRepo
+      .createQueryBuilder('c')
+      .leftJoin('c.participants', 'p')
+      .where('c.id = :conversationId', { conversationId })
+      .andWhere('p.user.id = :userId', { userId: user.id })
+      .getOne();
+
+    if (!participant) throw new NotFoundException('User not part of this conversation');
+
+    // Update all unread messages from other users to READ
+    await this.messageRepo
+      .createQueryBuilder()
+      .update(Message)
+      .set({ status: MessageStatus.READ })
+      .where('conversation.id = :conversationId', { conversationId })
+      .andWhere('sender.id != :userId', { userId: user.id })
+      .andWhere('status != :readStatus', { readStatus: MessageStatus.READ })
+      .execute();
+
+    // Return updated messages for broadcasting
+    const updatedMessages = await this.messageRepo.find({
+      where: {
+        conversation: { id: conversationId },
+        sender: { id: user.id } // Only return messages from current user that were marked as read
+      },
+      relations: ['sender'],
+    });
+
+    return updatedMessages.map((m) => new MessageResponseDto(m, user));
+  }
+
+  async markMessageAsDelivered(messageId: number) {
+    await this.messageRepo
+      .createQueryBuilder()
+      .update(Message)
+      .set({ status: MessageStatus.DELIVERED })
+      .where('id = :messageId', { messageId })
+      .andWhere('status = :sentStatus', { sentStatus: MessageStatus.SENT })
+      .execute();
   }
 }

@@ -5,7 +5,7 @@ config()
 
 const token = jwt.sign(
   { sub: 'appA:1', name: 'Alice' },
-  process.env.JWT_SHARED_SECRET!,
+  process.env.JWT_SHARED_SECRET || "",
   { expiresIn: '7d' },
 );
 
