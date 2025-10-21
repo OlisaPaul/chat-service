@@ -8,6 +8,7 @@ export class MessageResponseDto {
   sentByMe: boolean;
   status: MessageStatus;
   createdAt: Date;
+  conversationId: number;
 
   constructor(message: Message, currentUser: User) {
     this.id = message.id;
@@ -16,5 +17,6 @@ export class MessageResponseDto {
     this.sentByMe = message.sender?.id === currentUser.id;
     this.status = message.status;
     this.createdAt = message.createdAt;
+    this.conversationId = message.conversation?.id
   }
 }

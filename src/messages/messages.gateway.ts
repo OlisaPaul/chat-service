@@ -91,6 +91,10 @@ export class MessagesGateway implements OnGatewayConnection {
     this.server
       .to(`conversation:${data.conversationId}`)
       .emit('new_message', updatedMessage);
+
+    // Also emit to sender's socket specifically to ensure they see their own message
+    socket.emit('new_message', updatedMessage);
+
     return updatedMessage;
   }
 
@@ -140,5 +144,12 @@ export class MessagesGateway implements OnGatewayConnection {
         userId: userPayload.sub,
         updatedMessages,
       });
+
+    // Also emit to the sender's socket to ensure they see the updates
+    socket.emit('messages_read', {
+      conversationId,
+      userId: userPayload.sub,
+      updatedMessages,
+    });
   }
 }
