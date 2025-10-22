@@ -1285,65 +1285,75 @@
 
       // Start new chat
       async function startNewChat() {
-        if (selectedUsersForNewChat.size === 0) {
-          alert('Please select at least one user!');
-          return;
-        }
-
-        try {
-          // For single user, create private conversation
-          if (selectedUsersForNewChat.size === 1) {
-            const otherUser = Array.from(selectedUsersForNewChat)[0];
-            const response = await fetch(
-              `${API_BASE}/conversations/private/appA:${otherUser}`,
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${tokens[currentUser]}`,
-                  'Content-Type': 'application/json',
-                },
-              },
-            );
-
-            const conversation = await response.json();
-            conversations[conversation.id] = conversation;
-            renderConversationList();
-            closeNewChatModal();
-            openConversation(conversation.id);
-          } else {
-            // For multiple users, create group conversation
-            const participantIds = Array.from(selectedUsersForNewChat).map(
-              (u) => `appA:${u}`,
-            );
-            const groupName = Array.from(selectedUsersForNewChat)
-              .map((u) => u.charAt(0).toUpperCase() + u.slice(1))
-              .join(', ');
-
-            const response = await fetch(`${API_BASE}/conversations/group`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${tokens[currentUser]}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                name: groupName,
-                participantIds: participantIds,
-              }),
-            });
-
-            const conversation = await response.json();
-            conversations[conversation.id] = conversation;
-            renderConversationList();
-            closeNewChatModal();
-            openConversation(conversation.id);
+          if (selectedUsersForNewChat.size === 0) {
+              alert('Please select at least one user!');
+              return;
           }
 
-          // Reload conversations to ensure we have the latest data
-          setTimeout(() => loadConversations(), 500);
-        } catch (error) {
-          console.error('Failed to create conversation:', error);
-          alert('Failed to create conversation. Please try again.');
-        }
+          try {
+              // For single user, create private conversation via API
+              if (selectedUsersForNewChat.size === 1) {
+                  const otherUser = Array.from(selectedUsersForNewChat)[0];
+                  const partnerExternalId = `appA:${otherUser}`;
+
+                  const response = await fetch(
+                      `${API_BASE}/conversations/private/${partnerExternalId}`,
+                      {
+                          method: 'POST',
+                          headers: {
+                              Authorization: `Bearer ${tokens[currentUser]}`,
+                              'Content-Type': 'application/json',
+                          },
+                      },
+                  );
+
+                  if (!response.ok) {
+                      throw new Error(`HTTP error! status: ${response.status}`);
+                  }
+
+                  const conversation = await response.json();
+                  conversations[conversation.id] = conversation;
+                  renderConversationList();
+                  closeNewChatModal();
+                  openConversation(conversation.id);
+              } else {
+                  // For multiple users, create group conversation
+                  const participantIds = Array.from(selectedUsersForNewChat).map(
+                      (u) => `appA:${u}`,
+                  );
+                  const groupName = Array.from(selectedUsersForNewChat)
+                      .map((u) => u.charAt(0).toUpperCase() + u.slice(1))
+                      .join(', ');
+
+                  const response = await fetch(`${API_BASE}/conversations/group`, {
+                      method: 'POST',
+                      headers: {
+                          Authorization: `Bearer ${tokens[currentUser]}`,
+                          'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                          name: groupName,
+                          participantIds: participantIds,
+                      }),
+                  });
+
+                  if (!response.ok) {
+                      throw new Error(`HTTP error! status: ${response.status}`);
+                  }
+
+                  const conversation = await response.json();
+                  conversations[conversation.id] = conversation;
+                  renderConversationList();
+                  closeNewChatModal();
+                  openConversation(conversation.id);
+              }
+
+              // Reload conversations to ensure we have the latest data
+              setTimeout(() => loadConversations(), 500);
+          } catch (error) {
+              console.error('Failed to create conversation:', error);
+              alert('Failed to create conversation. Please try again.');
+          }
       }
 
       // Initialize the app
