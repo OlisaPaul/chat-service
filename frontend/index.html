@@ -60,6 +60,16 @@
         color: white;
       }
 
+      .user-btn.online::after {
+        content: '🟢';
+        margin-left: 5px;
+      }
+
+      .user-btn.offline::after {
+        content: '⚪';
+        margin-left: 5px;
+      }
+
       .user-btn:not(.active) {
         background: rgba(255, 255, 255, 0.2);
         color: white;
@@ -237,6 +247,9 @@
         sendBtn.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', handleKeyPress);
         messageInput.addEventListener('input', handleTyping);
+
+        // Load users and online status
+        loadUsers();
       }
 
       // Select user
@@ -445,6 +458,44 @@
           typingEl.className = 'typing-indicator';
           typingEl.textContent = `${data.userName} is typing...`;
           chatArea.appendChild(typingEl);
+        }
+      }
+
+      // Load users and online status
+      async function loadUsers() {
+        try {
+          // Fetch all users
+          const usersResponse = await fetch(`${API_BASE}/users`, {
+            headers: { Authorization: `Bearer ${tokens[currentUser]}` },
+          });
+          const allUsers = await usersResponse.json();
+
+          // Fetch online users
+          const onlineResponse = await fetch(`${API_BASE}/users/online`, {
+            headers: { Authorization: `Bearer ${tokens[currentUser]}` },
+          });
+          const onlineUsers = await onlineResponse.json();
+
+          // Create online user set for quick lookup
+          const onlineUserIds = new Set(onlineUsers.map(u => u.externalId));
+
+          // Update user buttons with status
+          allUsers.forEach(user => {
+            const status = onlineUserIds.has(user.externalId) ? 'online' : 'offline';
+            updateUserStatus(user.externalId, status);
+          });
+        } catch (error) {
+          console.error('Failed to load users:', error);
+        }
+      }
+
+      // Update user online/offline status
+      function updateUserStatus(userId, status) {
+        // Find user button by data attribute
+        const userBtn = document.querySelector(`[data-user="${userId.replace('appA:', '')}"]`);
+        if (userBtn) {
+          userBtn.classList.toggle('online', status === 'online');
+          userBtn.classList.toggle('offline', status === 'offline');
         }
       }
 

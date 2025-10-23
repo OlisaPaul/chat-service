@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { User } from '../entities/user.entity';
 
 @Injectable()
@@ -29,5 +29,24 @@ export class UsersService {
       });
       return this.usersRepository.save(newUser);
     }
+  }
+
+  async findByExternalId(externalId: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { externalId } });
+  }
+
+  async findAllExcept(externalId: string) {
+    return this.usersRepository.find({
+      where: { externalId: Not(externalId) },
+      select: ['id', 'externalId', 'name'],
+    });
+  }
+
+  async findByExternalIds(externalIds: string[]) {
+    if (!externalIds.length) return [];
+    return this.usersRepository.find({
+      where: externalIds.map(id => ({ externalId: id })),
+      select: ['id', 'externalId', 'name'],
+    });
   }
 }
