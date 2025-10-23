@@ -21,7 +21,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async getAllUsers(@Request() req) {
     const currentUser = req.user;
-    return this.usersService.findAllExcept(currentUser.sub);
+    return this.usersService.findAllExcept(currentUser.id);
   }
 
   @Get('online')

@@ -10,7 +10,11 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  async upsertExternalUser(externalId: string, name: string, avatarUrl?: string): Promise<User> {
+  async upsertExternalUser(
+    externalId: string,
+    name: string,
+    avatarUrl?: string,
+  ): Promise<User> {
     let user = await this.usersRepository.findOne({ where: { externalId } });
 
     if (user) {
@@ -35,9 +39,9 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { externalId } });
   }
 
-  async findAllExcept(externalId: string) {
+  async findAllExcept(externalId: number) {
     return this.usersRepository.find({
-      where: { externalId: Not(externalId) },
+      where: { id: Not(externalId) },
       select: ['id', 'externalId', 'name'],
     });
   }
@@ -45,7 +49,7 @@ export class UsersService {
   async findByExternalIds(externalIds: string[]) {
     if (!externalIds.length) return [];
     return this.usersRepository.find({
-      where: externalIds.map(id => ({ externalId: id })),
+      where: externalIds.map((id) => ({ externalId: id })),
       select: ['id', 'externalId', 'name'],
     });
   }
