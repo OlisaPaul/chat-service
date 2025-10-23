@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Multi-User Chat - Enhanced</title>
+    <title>Real-Time Chat - Alice & Bob</title>
     <style>
       * {
         margin: 0;
@@ -18,7 +18,6 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 20px;
       }
 
       .container {
@@ -27,51 +26,33 @@
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         overflow: hidden;
         width: 100%;
-        max-width: 900px;
-        height: 700px;
-        display: flex;
-      }
-
-      .sidebar {
-        width: 300px;
-        background: #f8f9fa;
-        border-right: 1px solid #dee2e6;
+        max-width: 400px;
+        height: 600px;
         display: flex;
         flex-direction: column;
       }
 
-      .sidebar-header {
+      .header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 20px;
-      }
-
-      .current-user {
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 10px;
+        text-align: center;
       }
 
       .user-selector {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 15px;
       }
 
       .user-btn {
-        padding: 6px 12px;
+        padding: 8px 16px;
         border: none;
-        border-radius: 15px;
+        border-radius: 20px;
         cursor: pointer;
-        font-size: 13px;
-        font-weight: 600;
+        font-weight: bold;
         transition: all 0.3s;
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-      }
-
-      .user-btn:hover {
-        background: rgba(255, 255, 255, 0.3);
       }
 
       .user-btn.active {
@@ -79,132 +60,14 @@
         color: white;
       }
 
-      .conversation-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: 10px;
-      }
-
-      .conversation-item {
-        padding: 15px;
-        margin-bottom: 8px;
-        background: white;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.3s;
-        border: 2px solid transparent;
-      }
-
-      .conversation-item:hover {
-        background: #e9ecef;
-      }
-
-      .conversation-item.active {
-        background: #e7f3ff;
-        border-color: #007bff;
-      }
-
-      .conversation-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 5px;
-      }
-
-      .conversation-name {
-        font-weight: 600;
-        font-size: 15px;
-        color: #333;
-      }
-
-      .conversation-time {
-        font-size: 11px;
-        color: #666;
-      }
-
-      .conversation-preview {
-        font-size: 13px;
-        color: #666;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .unread-badge {
-        background: #007bff;
+      .user-btn:not(.active) {
+        background: rgba(255, 255, 255, 0.2);
         color: white;
-        border-radius: 10px;
-        padding: 2px 8px;
-        font-size: 11px;
-        font-weight: bold;
-        margin-left: 8px;
       }
 
-      .new-chat-section {
-        padding: 15px;
-        border-top: 1px solid #dee2e6;
-      }
-
-      .new-chat-btn {
-        width: 100%;
-        padding: 12px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: background 0.3s;
-      }
-
-      .new-chat-btn:hover {
-        background: #0056b3;
-      }
-
-      .main-area {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .chat-header {
-        background: white;
-        padding: 20px;
-        border-bottom: 1px solid #dee2e6;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .chat-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: #333;
-      }
-
-      .chat-subtitle {
-        font-size: 13px;
-        color: #666;
-        margin-top: 3px;
-      }
-
-      .chat-actions {
-        display: flex;
-        gap: 10px;
-      }
-
-      .action-btn {
-        padding: 8px 16px;
-        border: 1px solid #dee2e6;
-        background: white;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 13px;
-        transition: all 0.3s;
-      }
-
-      .action-btn:hover {
-        background: #f8f9fa;
+      .status {
+        font-size: 14px;
+        opacity: 0.9;
       }
 
       .chat-area {
@@ -238,13 +101,6 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
 
-      .message-sender {
-        font-size: 12px;
-        font-weight: 600;
-        margin-bottom: 4px;
-        opacity: 0.8;
-      }
-
       .message-time {
         font-size: 11px;
         opacity: 0.7;
@@ -256,13 +112,12 @@
         color: #666;
         font-size: 14px;
         margin-bottom: 10px;
-        padding: 8px 12px;
       }
 
       .input-area {
         padding: 20px;
         background: white;
-        border-top: 1px solid #dee2e6;
+        border-top: 1px solid #eee;
         display: flex;
         gap: 10px;
       }
@@ -282,7 +137,7 @@
       }
 
       .send-btn {
-        padding: 12px 24px;
+        padding: 12px 20px;
         background: #007bff;
         color: white;
         border: none;
@@ -305,8 +160,8 @@
         position: absolute;
         top: 10px;
         right: 10px;
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
         background: #ccc;
         transition: background 0.3s;
@@ -316,491 +171,34 @@
         background: #4caf50;
       }
 
-      .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        color: #999;
-        text-align: center;
-        padding: 40px;
-      }
-
-      .empty-state-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-      }
-
-      .empty-state-text {
-        font-size: 16px;
-        margin-bottom: 8px;
-      }
-
-      .empty-state-subtext {
-        font-size: 13px;
-      }
-
-      /* Modal styles */
-      .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .modal.active {
-        display: flex;
-      }
-
-      .modal-content {
-        background: white;
-        border-radius: 16px;
-        padding: 30px;
-        width: 90%;
-        max-width: 400px;
-      }
-
-      .modal-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 20px;
-      }
-
-      .user-select-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        margin-bottom: 20px;
-      }
-
-      .user-select-item {
-        padding: 12px;
-        border: 2px solid #e9ecef;
-        border-radius: 10px;
-        cursor: pointer;
-        text-align: center;
-        transition: all 0.3s;
-      }
-
-      .user-select-item:hover {
-        border-color: #007bff;
-        background: #f8f9fa;
-      }
-
-      .user-select-item.selected {
-        border-color: #007bff;
-        background: #e7f3ff;
-      }
-
-      .user-select-item.disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      .modal-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-      }
-
-      .modal-btn {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.3s;
-      }
-
-      .modal-btn.primary {
-        background: #007bff;
-        color: white;
-      }
-
-      .modal-btn.primary:hover {
-        background: #0056b3;
-      }
-
-      .modal-btn.secondary {
-        background: #e9ecef;
-        color: #333;
-      }
-
-      .modal-btn.secondary:hover {
-        background: #dee2e6;
-      }
-
-      /* Mobile Menu Toggle */
-      .mobile-menu-toggle {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 56px;
-        height: 56px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        font-size: 24px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
-        z-index: 100;
-        transition: all 0.3s;
-      }
-
-      .mobile-menu-toggle:active {
-        transform: scale(0.95);
-      }
-
-      .mobile-back-btn {
-        display: none;
-        padding: 8px 16px;
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        margin-bottom: 10px;
-      }
-
-      @media (max-width: 768px) {
-        body {
-          padding: 0;
-        }
-
-        .container {
-          flex-direction: row;
-          height: 100vh;
-          max-width: 100%;
-          border-radius: 0;
-          position: relative;
-        }
-
-        .sidebar {
-          position: absolute;
-          left: -100%;
-          width: 85%;
-          max-width: 320px;
-          height: 100%;
-          transition: left 0.3s ease;
-          z-index: 10;
-          box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .sidebar.active {
-          left: 0;
-        }
-
-        .sidebar-header {
-          padding: 15px;
-        }
-
-        .current-user {
-          font-size: 16px;
-          margin-bottom: 8px;
-        }
-
-        .user-selector {
-          overflow-x: auto;
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-
-        .user-selector::-webkit-scrollbar {
-          display: none;
-        }
-
-        .user-btn {
-          padding: 6px 12px;
-          font-size: 12px;
-          white-space: nowrap;
-        }
-
-        .conversation-list {
-          padding: 8px;
-        }
-
-        .conversation-item {
-          padding: 12px;
-          margin-bottom: 6px;
-        }
-
-        .conversation-name {
-          font-size: 14px;
-        }
-
-        .conversation-preview {
-          font-size: 12px;
-        }
-
-        .new-chat-section {
-          padding: 12px;
-        }
-
-        .main-area {
-          width: 100%;
-        }
-
-        .chat-header {
-          padding: 15px;
-        }
-
-        .chat-title {
-          font-size: 16px;
-        }
-
-        .chat-subtitle {
-          font-size: 12px;
-        }
-
-        .action-btn {
-          padding: 6px 12px;
-          font-size: 12px;
-        }
-
-        .chat-area {
-          padding: 15px;
-        }
-
-        .message {
-          max-width: 85%;
-          padding: 10px 14px;
-          font-size: 15px;
-        }
-
-        .message-time {
-          font-size: 10px;
-        }
-
-        .input-area {
-          padding: 12px;
-        }
-
-        .message-input {
-          padding: 10px 14px;
-          font-size: 15px;
-        }
-
-        .send-btn {
-          padding: 10px 18px;
-          font-size: 14px;
-        }
-
-        .mobile-menu-toggle {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .mobile-back-btn {
-          display: inline-block;
-        }
-
-        .empty-state {
-          padding: 20px;
-        }
-
-        .empty-state-icon {
-          font-size: 40px;
-        }
-
-        .empty-state-text {
-          font-size: 14px;
-        }
-
-        .empty-state-subtext {
-          font-size: 12px;
-        }
-
-        /* Modal adjustments */
-        .modal-content {
-          width: 95%;
-          max-width: 350px;
-          padding: 20px;
-        }
-
-        .modal-title {
-          font-size: 18px;
-          margin-bottom: 15px;
-        }
-
-        .user-select-grid {
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
-        }
-
-        .user-select-item {
-          padding: 10px;
-          font-size: 14px;
-        }
-
-        .modal-btn {
-          padding: 10px 16px;
-          font-size: 14px;
-        }
-
-        /* Hide chat actions on mobile */
-        .chat-actions {
-          display: none;
-        }
-      }
-
-      @media (max-width: 480px) {
-        .user-btn {
-          padding: 5px 10px;
-          font-size: 11px;
-        }
-
-        .conversation-item {
-          padding: 10px;
-        }
-
-        .chat-header {
-          padding: 12px;
-        }
-
-        .message {
-          max-width: 90%;
-          padding: 8px 12px;
-          font-size: 14px;
-        }
-
-        .input-area {
-          padding: 10px;
-          gap: 8px;
-        }
-
-        .message-input {
-          padding: 8px 12px;
-          font-size: 14px;
-        }
-
-        .send-btn {
-          padding: 8px 16px;
-          font-size: 13px;
-        }
-
-        .user-select-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      /* Overlay for mobile sidebar */
-      .mobile-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9;
-        opacity: 0;
-        transition: opacity 0.3s;
-      }
-
-      .mobile-overlay.active {
-        display: block;
-        opacity: 1;
-      }
-
-      @media (max-width: 768px) {
-        .mobile-overlay {
-          display: block;
-        }
+      .connection-status.disconnected {
+        background: #f44336;
       }
     </style>
   </head>
   <body>
-    <!-- Mobile Overlay -->
-    <div class="mobile-overlay" id="mobile-overlay"></div>
-
-    <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" id="mobile-menu-toggle">☰</button>
-
     <div class="container">
-      <!-- Sidebar -->
-      <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-          <button class="mobile-back-btn" id="mobile-back-btn">← Back</button>
-          <div class="current-user">
-            <span id="current-user-name">Select User</span>
-            <div class="connection-status" id="connection-status"></div>
-          </div>
-          <div class="user-selector">
-            <button class="user-btn" data-user="alice">Alice</button>
-            <button class="user-btn" data-user="bob">Bob</button>
-            <button class="user-btn" data-user="charlie">Charlie</button>
-            <button class="user-btn" data-user="david">David</button>
-            <button class="user-btn" data-user="eve">Eve</button>
-          </div>
+      <div class="header">
+        <div class="user-selector">
+          <button class="user-btn" id="alice-btn">Alice</button>
+          <button class="user-btn" id="bob-btn">Bob</button>
         </div>
-
-        <div class="conversation-list" id="conversation-list">
-          <!-- Conversations will be populated here -->
-        </div>
-
-        <div class="new-chat-section">
-          <button class="new-chat-btn" id="new-chat-btn">+ New Chat</button>
-        </div>
+        <div class="status" id="status">Select a user to start chatting</div>
       </div>
 
-      <!-- Main Chat Area -->
-      <div class="main-area">
-        <div class="chat-header" id="chat-header" style="display: none">
-          <div>
-            <div class="chat-title" id="chat-title">Conversation</div>
-            <div class="chat-subtitle" id="chat-subtitle"></div>
-          </div>
-          <div class="chat-actions">
-            <button class="action-btn" id="refresh-btn">🔄 Refresh</button>
-          </div>
-        </div>
-
-        <div class="chat-area" id="chat-area">
-          <div class="empty-state">
-            <div class="empty-state-icon">💬</div>
-            <div class="empty-state-text">No conversation selected</div>
-            <div class="empty-state-subtext">
-              Select a user and start a new chat
-            </div>
-          </div>
-        </div>
-
-        <div class="input-area" style="display: none" id="input-area">
-          <input
-            type="text"
-            class="message-input"
-            id="message-input"
-            placeholder="Type a message..."
-          />
-          <button class="send-btn" id="send-btn">Send</button>
-        </div>
+      <div class="chat-area" id="chat-area">
+        <div class="connection-status" id="connection-status"></div>
       </div>
-    </div>
 
-    <!-- New Chat Modal -->
-    <div class="modal" id="new-chat-modal">
-      <div class="modal-content">
-        <div class="modal-title">Start New Chat</div>
-        <div class="user-select-grid" id="user-select-grid">
-          <!-- Users will be populated here -->
-        </div>
-        <div class="modal-actions">
-          <button class="modal-btn secondary" id="cancel-btn">Cancel</button>
-          <button class="modal-btn primary" id="start-chat-btn">
-            Start Chat
-          </button>
-        </div>
+      <div class="input-area">
+        <input
+          type="text"
+          class="message-input"
+          id="message-input"
+          placeholder="Type a message..."
+          disabled
+        />
+        <button class="send-btn" id="send-btn" disabled>Send</button>
       </div>
     </div>
 
@@ -810,123 +208,62 @@
       const API_BASE = 'http://localhost:3001';
       const WS_URL = 'http://localhost:3001';
 
-      // JWT tokens
+      // JWT tokens (freshly generated)
       const tokens = {
         alice:
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmFsaWNlIiwibmFtZSI6IkFsaWNlIiwiaWF0IjoxNzYwOTkzOTEwLCJleHAiOjE3NjE1OTg3MTB9.xZbEB9kvDo0dA0PfwB6V3Se_FfUNccNF70h2b37KvX8',
         bob: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmJvYiIsIm5hbWUiOiJCb2IiLCJpYXQiOjE3NjA5OTM5MTAsImV4cCI6MTc2MTU5ODcxMH0.Eq1gkxazB-sn7P3aMjw2eonywL69mZRS_6BNgbWV8O8',
-        charlie:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmNoYXJsaWUiLCJuYW1lIjoiQ2hhcmxpZSIsImlhdCI6MTc2MDk5MzkxMCwiZXhwIjoxNzYxNTk4NzEwfQ.8Q8v8Q8v8Q8v8Q8v8Q8v8Q8v8Q8v8Q8v8Q8v8Q8v8Q8v',
-        david:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmRhdmlkIiwibmFtZSI6IkRhdmlkIiwiaWF0IjoxNzYwOTkzOTEwLCJleHAiOjE3NjE1OTg3MTB9.9R9w9R9w9R9w9R9w9R9w9R9w9R9w9R9w9R9w9R9w9R9w',
-        eve: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmV2ZSIsIm5hbWUiOiJldmUiLCJpYXQiOjE3NjEwNTk4MDksImV4cCI6MTc2MTY2NDYwOX0.f8GRCsad_7JrC6MQgCMTx7802TlsLZDYIWEUeLxe3L0',
-      };
-
-      const userNames = {
-        'appA:alice': 'Alice',
-        'appA:bob': 'Bob',
-        'appA:charlie': 'Charlie',
-        'appA:david': 'David',
-        'appA:eve': 'Eve',
       };
 
       // State
       let currentUser = null;
       let socket = null;
-      let conversations = {};
-      let activeConversation = null;
+      let conversationId = null;
       let typingTimeout = null;
-      let selectedUsersForNewChat = new Set();
 
       // DOM elements
-      const currentUserName = document.getElementById('current-user-name');
-      const conversationList = document.getElementById('conversation-list');
+      const aliceBtn = document.getElementById('alice-btn');
+      const bobBtn = document.getElementById('bob-btn');
+      const statusEl = document.getElementById('status');
       const chatArea = document.getElementById('chat-area');
       const messageInput = document.getElementById('message-input');
       const sendBtn = document.getElementById('send-btn');
       const connectionStatus = document.getElementById('connection-status');
-      const newChatBtn = document.getElementById('new-chat-btn');
-      const newChatModal = document.getElementById('new-chat-modal');
-      const userSelectGrid = document.getElementById('user-select-grid');
-      const startChatBtn = document.getElementById('start-chat-btn');
-      const cancelBtn = document.getElementById('cancel-btn');
-      const chatHeader = document.getElementById('chat-header');
-      const chatTitle = document.getElementById('chat-title');
-      const chatSubtitle = document.getElementById('chat-subtitle');
-      const inputArea = document.getElementById('input-area');
-      const refreshBtn = document.getElementById('refresh-btn');
-      const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-      const mobileOverlay = document.getElementById('mobile-overlay');
-      const sidebar = document.getElementById('sidebar');
-      const mobileBackBtn = document.getElementById('mobile-back-btn');
 
       // Initialize
       function init() {
-        // User selection
-        document.querySelectorAll('.user-btn').forEach((btn) => {
-          btn.addEventListener('click', () => selectUser(btn.dataset.user));
-        });
-
-        // New chat
-        newChatBtn.addEventListener('click', openNewChatModal);
-        cancelBtn.addEventListener('click', closeNewChatModal);
-        startChatBtn.addEventListener('click', startNewChat);
-
-        // Message sending
+        aliceBtn.addEventListener('click', () => selectUser('alice'));
+        bobBtn.addEventListener('click', () => selectUser('bob'));
         sendBtn.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', handleKeyPress);
         messageInput.addEventListener('input', handleTyping);
-
-        // Refresh
-        refreshBtn.addEventListener('click', () => {
-          if (activeConversation) {
-            loadMessages(activeConversation);
-          }
-        });
-
-        // Mobile menu
-        mobileMenuToggle.addEventListener('click', toggleMobileMenu);
-        mobileOverlay.addEventListener('click', closeMobileMenu);
-        mobileBackBtn.addEventListener('click', closeMobileMenu);
-      }
-
-      // Mobile menu functions
-      function toggleMobileMenu() {
-        sidebar.classList.toggle('active');
-        mobileOverlay.classList.toggle('active');
-      }
-
-      function closeMobileMenu() {
-        sidebar.classList.remove('active');
-        mobileOverlay.classList.remove('active');
-      }
-
-      function openMobileMenu() {
-        sidebar.classList.add('active');
-        mobileOverlay.classList.add('active');
       }
 
       // Select user
       async function selectUser(user) {
-        if (currentUser === user) return;
-
         currentUser = user;
-        currentUserName.textContent =
-          user.charAt(0).toUpperCase() + user.slice(1);
+
+        // Clear previous messages
+        chatArea.innerHTML =
+          '<div class="connection-status" id="connection-status"></div>';
 
         // Update UI
-        document.querySelectorAll('.user-btn').forEach((btn) => {
-          btn.classList.toggle('active', btn.dataset.user === user);
-        });
+        aliceBtn.classList.toggle('active', user === 'alice');
+        bobBtn.classList.toggle('active', user === 'bob');
+        statusEl.textContent = `Connecting as ${user.charAt(0).toUpperCase() + user.slice(1)}...`;
 
-        // Connect WebSocket
+        // Enable input
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
+
+        // Connect to WebSocket
         connectWebSocket();
 
-        // Load conversations
-        await loadConversations();
+        // Create/get conversation
+        await createConversation();
       }
 
-      // Connect WebSocket
+      // Connect to WebSocket
       function connectWebSocket() {
         if (socket) socket.disconnect();
 
@@ -937,162 +274,60 @@
 
         socket.on('connect', () => {
           console.log(`${currentUser} connected`);
+          statusEl.textContent = `Connected as ${currentUser.charAt(0).toUpperCase() + currentUser.slice(1)}`;
           connectionStatus.className = 'connection-status connected';
-
-          // Reload conversations when connecting
-          loadConversations();
         });
 
         socket.on('disconnect', () => {
           console.log(`${currentUser} disconnected`);
+          statusEl.textContent = `Disconnected - trying to reconnect...`;
           connectionStatus.className = 'connection-status disconnected';
         });
 
         socket.on('new_message', (message) => {
-          handleNewMessage(message);
+          // Determine if this message was sent by the current user
+          const isSentByMe =
+            message.senderName ===
+            currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
+          displayMessage({ ...message, sentByMe: isSentByMe });
         });
 
         socket.on('user_typing', (data) => {
-          if (data.conversationId === activeConversation) {
-            showTypingIndicator(data);
-          }
-        });
-
-        socket.on('messages_read', (data) => {
-          if (data.conversationId === activeConversation) {
-            // Refresh messages to show read status
-            loadMessages(activeConversation);
-          }
-        });
-
-        socket.on('conversation_created', (conversation) => {
-          console.log('New conversation created:', conversation);
-          conversations[conversation.id] = conversation;
-          renderConversationList();
-        });
-
-        socket.on('conversation_updated', (conversation) => {
-          console.log('Conversation updated:', conversation);
-          conversations[conversation.id] = conversation;
-          renderConversationList();
+          console.log('User typing', data);
+          showTypingIndicator(data);
         });
       }
 
-      // Load conversations
-      async function loadConversations() {
+      // Create conversation
+      async function createConversation() {
         try {
-          const response = await fetch(`${API_BASE}/conversations`, {
-            headers: {
-              Authorization: `Bearer ${tokens[currentUser]}`,
+          const otherUser = currentUser === 'alice' ? 'appA:bob' : 'appA:alice';
+          const response = await fetch(
+            `${API_BASE}/conversations/private/${otherUser}`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${tokens[currentUser]}`,
+                'Content-Type': 'application/json',
+              },
             },
-          });
+          );
 
           const data = await response.json();
-          conversations = {};
+          conversationId = data.id;
+          console.log('Conversation created:', data);
 
-          data.forEach((conv) => {
-            conversations[conv.id] = conv;
-          });
-
-          renderConversationList();
+          // Load existing messages
+          await loadMessages();
         } catch (error) {
-          console.error('Failed to load conversations:', error);
+          console.error('Failed to create conversation:', error);
         }
       }
 
-      // Render conversation list
-      function renderConversationList() {
-        conversationList.innerHTML = '';
+      // Load existing messages
+      async function loadMessages() {
+        if (!conversationId) return;
 
-        const convArray = Object.values(conversations).sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt || a.createdAt;
-          const bTime = b.lastMessage?.createdAt || b.createdAt;
-          return new Date(bTime) - new Date(aTime);
-        });
-
-        if (convArray.length === 0) {
-          conversationList.innerHTML =
-            '<div style="padding: 20px; text-align: center; color: #999;">No conversations yet</div>';
-          return;
-        }
-
-        convArray.forEach((conv) => {
-          const item = document.createElement('div');
-          item.className = 'conversation-item';
-          if (activeConversation === conv.id) {
-            item.classList.add('active');
-          }
-
-          const participantNames = conv.participants
-            .filter((p) => p.id !== `appA:${currentUser}`)
-            .map((p) => userNames[p.id] || p.id)
-            .join(', ');
-
-          const lastMessageTime = conv.lastMessage
-            ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : '';
-
-          const unreadCount = conv.unreadCount || 0;
-
-          item.innerHTML = `
-                    <div class="conversation-header">
-                        <div class="conversation-name">
-                            ${participantNames}
-                            ${unreadCount > 0 ? `<span class="unread-badge">${unreadCount}</span>` : ''}
-                        </div>
-                        <div class="conversation-time">${lastMessageTime}</div>
-                    </div>
-                    <div class="conversation-preview">
-                        ${conv.lastMessage?.content || 'No messages yet'}
-                    </div>
-                `;
-
-          item.addEventListener('click', () => openConversation(conv.id));
-          conversationList.appendChild(item);
-        });
-      }
-
-      // Open conversation
-      async function openConversation(conversationId) {
-        activeConversation = conversationId;
-        const conv = conversations[conversationId];
-
-        // Close mobile menu when opening conversation
-        closeMobileMenu();
-
-        // Update UI
-        renderConversationList();
-        chatHeader.style.display = 'flex';
-        inputArea.style.display = 'flex';
-
-        const participantNames = conv.participants
-          .filter((p) => p.id !== `appA:${currentUser}`)
-          .map((p) => userNames[p.id] || p.id)
-          .join(', ');
-
-        chatTitle.textContent = participantNames;
-        chatSubtitle.textContent = `${conv.participants.length} participants`;
-
-        // Load messages
-        await loadMessages(conversationId);
-
-        // Mark as read
-        if (socket) {
-          socket.emit('mark_as_read', conversationId);
-        }
-
-        // Update conversation with zero unread
-        if (conversations[conversationId]) {
-          conversations[conversationId].unreadCount = 0;
-          renderConversationList();
-        }
-      }
-
-      // Load messages
-      async function loadMessages(conversationId) {
         try {
           const response = await fetch(
             `${API_BASE}/messages/${conversationId}`,
@@ -1105,92 +340,42 @@
 
           let messages = await response.json();
           messages = messages.reverse();
+          console.log('Loaded messages:', messages);
 
-          // Clear chat area
-          chatArea.innerHTML = '';
-
-          if (messages.length === 0) {
-            chatArea.innerHTML =
-              '<div class="empty-state"><div class="empty-state-text">No messages yet</div><div class="empty-state-subtext">Send a message to start the conversation</div></div>';
-            return;
+          // Clear chat area and add connection status back
+          chatArea.innerHTML =
+            '<div class="connection-status" id="connection-status"></div>';
+          const connectionStatus = document.getElementById('connection-status');
+          if (socket && socket.connected) {
+            connectionStatus.className = 'connection-status connected';
           }
 
-          // Display messages
+          // Display loaded messages
           messages.forEach((message) => {
-            const isSentByMe = message.senderId === `appA:${currentUser}`;
+            // Determine if this message was sent by the current user
+            const isSentByMe =
+              message.senderName ===
+              currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
             displayMessage({ ...message, sentByMe: isSentByMe });
           });
-
-          chatArea.scrollTop = chatArea.scrollHeight;
         } catch (error) {
           console.error('Failed to load messages:', error);
         }
       }
 
-      // Handle new message
-      function handleNewMessage(message) {
-        // If this is a new conversation we don't have yet, fetch it
-        if (!conversations[message.conversationId]) {
-          loadConversations();
-          return;
-        }
-
-        // Update conversation last message
-        if (conversations[message.conversationId]) {
-          conversations[message.conversationId].lastMessage = message;
-
-          // Increment unread count if not active conversation
-          if (activeConversation !== message.conversationId) {
-            conversations[message.conversationId].unreadCount =
-              (conversations[message.conversationId].unreadCount || 0) + 1;
-          }
-
-          renderConversationList();
-        }
-
-        // Display message if in active conversation
-        if (message.conversationId === activeConversation) {
-          const isSentByMe = message.senderId === `appA:${currentUser}`;
-          displayMessage({ ...message, sentByMe: isSentByMe });
-        }
-      }
-
-      // Display message
-      function displayMessage(message) {
-        // Remove typing indicator
-        const typingEl = chatArea.querySelector('.typing-indicator');
-        if (typingEl) typingEl.remove();
-
-        const messageEl = document.createElement('div');
-        messageEl.className = `message ${message.sentByMe ? 'sent' : 'received'}`;
-        messageEl.dataset.messageId = message.id;
-
-        let content = '';
-
-        if (!message.sentByMe) {
-          content += `<div class="message-sender">${message.senderName}</div>`;
-        }
-
-        content += `<div>${message.content}</div>`;
-        content += `<div class="message-time">${new Date(message.createdAt).toLocaleTimeString()}</div>`;
-
-        messageEl.innerHTML = content;
-
-        chatArea.appendChild(messageEl);
-        chatArea.scrollTop = chatArea.scrollHeight;
-      }
-
       // Send message
       async function sendMessage() {
         const content = messageInput.value.trim();
-        if (!content || !activeConversation) return;
+        if (!content || !conversationId) return;
 
         try {
+          // Send via WebSocket
           socket.emit('send_message', {
-            conversationId: activeConversation,
+            conversationId: conversationId,
             content: content,
           });
 
+          // Clear input
           messageInput.value = '';
           stopTyping();
         } catch (error) {
@@ -1207,18 +392,22 @@
 
       // Handle typing
       function handleTyping() {
-        if (!socket || !activeConversation) return;
+        if (!socket || !conversationId) return;
 
-        socket.emit('typing_start', activeConversation);
+        // Send typing start
+        socket.emit('typing_start', conversationId);
 
+        // Clear previous timeout
         if (typingTimeout) clearTimeout(typingTimeout);
+
+        // Set timeout to stop typing
         typingTimeout = setTimeout(stopTyping, 1000);
       }
 
       // Stop typing
       function stopTyping() {
-        if (socket && activeConversation) {
-          socket.emit('typing_stop', activeConversation);
+        if (socket && conversationId) {
+          socket.emit('typing_stop', conversationId);
         }
         if (typingTimeout) {
           clearTimeout(typingTimeout);
@@ -1226,9 +415,29 @@
         }
       }
 
+      // Display message
+      function displayMessage(message) {
+        const messageEl = document.createElement('div');
+        messageEl.className = `message ${message.sentByMe ? 'sent' : 'received'}`;
+
+        const contentEl = document.createElement('div');
+        contentEl.textContent = message.content;
+
+        const timeEl = document.createElement('div');
+        timeEl.className = 'message-time';
+        timeEl.textContent = new Date(message.createdAt).toLocaleTimeString();
+
+        messageEl.appendChild(contentEl);
+        messageEl.appendChild(timeEl);
+
+        chatArea.appendChild(messageEl);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
       // Show typing indicator
       function showTypingIndicator(data) {
-        const existing = chatArea.querySelector('.typing-indicator');
+        // Remove existing typing indicators
+        const existing = document.querySelector('.typing-indicator');
         if (existing) existing.remove();
 
         if (data.isTyping && data.userId !== `appA:${currentUser}`) {
@@ -1236,124 +445,7 @@
           typingEl.className = 'typing-indicator';
           typingEl.textContent = `${data.userName} is typing...`;
           chatArea.appendChild(typingEl);
-          chatArea.scrollTop = chatArea.scrollHeight;
         }
-      }
-
-      // Open new chat modal
-      function openNewChatModal() {
-        if (!currentUser) {
-          alert('Please select a user first!');
-          return;
-        }
-
-        selectedUsersForNewChat.clear();
-        renderUserSelectGrid();
-        newChatModal.classList.add('active');
-      }
-
-      // Close new chat modal
-      function closeNewChatModal() {
-        newChatModal.classList.remove('active');
-        selectedUsersForNewChat.clear();
-      }
-
-      // Render user select grid
-      function renderUserSelectGrid() {
-        userSelectGrid.innerHTML = '';
-
-        Object.keys(tokens).forEach((user) => {
-          if (user === currentUser) return;
-
-          const item = document.createElement('div');
-          item.className = 'user-select-item';
-          item.textContent = user.charAt(0).toUpperCase() + user.slice(1);
-
-          item.addEventListener('click', () => {
-            if (selectedUsersForNewChat.has(user)) {
-              selectedUsersForNewChat.delete(user);
-              item.classList.remove('selected');
-            } else {
-              selectedUsersForNewChat.add(user);
-              item.classList.add('selected');
-            }
-          });
-
-          userSelectGrid.appendChild(item);
-        });
-      }
-
-      // Start new chat
-      async function startNewChat() {
-          if (selectedUsersForNewChat.size === 0) {
-              alert('Please select at least one user!');
-              return;
-          }
-
-          try {
-              // For single user, create private conversation via API
-              if (selectedUsersForNewChat.size === 1) {
-                  const otherUser = Array.from(selectedUsersForNewChat)[0];
-                  const partnerExternalId = `appA:${otherUser}`;
-
-                  const response = await fetch(
-                      `${API_BASE}/conversations/private/${partnerExternalId}`,
-                      {
-                          method: 'POST',
-                          headers: {
-                              Authorization: `Bearer ${tokens[currentUser]}`,
-                              'Content-Type': 'application/json',
-                          },
-                      },
-                  );
-
-                  if (!response.ok) {
-                      throw new Error(`HTTP error! status: ${response.status}`);
-                  }
-
-                  const conversation = await response.json();
-                  conversations[conversation.id] = conversation;
-                  renderConversationList();
-                  closeNewChatModal();
-                  openConversation(conversation.id);
-              } else {
-                  // For multiple users, create group conversation
-                  const participantIds = Array.from(selectedUsersForNewChat).map(
-                      (u) => `appA:${u}`,
-                  );
-                  const groupName = Array.from(selectedUsersForNewChat)
-                      .map((u) => u.charAt(0).toUpperCase() + u.slice(1))
-                      .join(', ');
-
-                  const response = await fetch(`${API_BASE}/conversations/group`, {
-                      method: 'POST',
-                      headers: {
-                          Authorization: `Bearer ${tokens[currentUser]}`,
-                          'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                          name: groupName,
-                          participantIds: participantIds,
-                      }),
-                  });
-
-                  if (!response.ok) {
-                      throw new Error(`HTTP error! status: ${response.status}`);
-                  }
-
-                  const conversation = await response.json();
-                  conversations[conversation.id] = conversation;
-                  renderConversationList();
-                  closeNewChatModal();
-                  openConversation(conversation.id);
-              }
-
-              // Reload conversations to ensure we have the latest data
-              setTimeout(() => loadConversations(), 500);
-          } catch (error) {
-              console.error('Failed to create conversation:', error);
-              alert('Failed to create conversation. Please try again.');
-          }
       }
 
       // Initialize the app

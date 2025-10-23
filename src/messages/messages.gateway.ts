@@ -68,7 +68,7 @@ export class MessagesGateway implements OnGatewayConnection {
   // ✅ Send a message and broadcast it to the room
   @SubscribeMessage('send_message')
   async handleMessage(
-    @MessageBody() data: { conversationId: number; content: string },
+    @MessageBody() data: { conversationId: number; content?: string; imageUrl?: string },
     @ConnectedSocket() socket: Socket,
   ) {
     const userPayload = socket.data.user;
@@ -79,6 +79,7 @@ export class MessagesGateway implements OnGatewayConnection {
       user,
       data.conversationId,
       data.content,
+      data.imageUrl,
     );
 
     // Mark message as delivered since recipient is connected

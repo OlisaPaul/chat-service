@@ -19,8 +19,11 @@ export class Message {
   @ManyToOne(() => User, { eager: true })
   sender: User;
 
-  @Column('text')
-  content: string;
+  @Column('text', { nullable: true })
+  content?: string;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  imageUrl?: string;
 
   @Column({
     type: 'enum',

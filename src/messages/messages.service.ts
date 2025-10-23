@@ -20,7 +20,7 @@ export class MessagesService {
     return user;
   }
 
-  async sendMessage(user: User, conversationId: number, content: string) {
+  async sendMessage(user: User, conversationId: number, content?: string, imageUrl?: string) {
     // Check if user is part of the conversation using the new participant system
     const participant = await this.convoRepo
       .createQueryBuilder('c')
@@ -40,6 +40,7 @@ export class MessagesService {
       conversation: convo,
       sender: user,
       content,
+      imageUrl,
       status: MessageStatus.SENT,
     });
     const saved = await this.messageRepo.save(message);

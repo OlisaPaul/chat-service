@@ -1,98 +1,189 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Chat Service - Multi-User Real-Time Chat Application
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A comprehensive real-time chat application built with NestJS, TypeORM, MySQL, and Socket.IO. Features JWT authentication, WebSocket communication, image uploads, and message status tracking.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🚀 Features
 
-## Description
+- **Real-time messaging** with WebSocket connections
+- **JWT authentication** for secure API access
+- **Image uploads** with file storage and serving
+- **Message status tracking** (sent, delivered, read)
+- **Conversation management** (private and group chats)
+- **User management** with external ID system
+- **Typing indicators** and read receipts
+- **Responsive web interface**
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🏗️ Architecture
 
-## Project setup
+### Backend (NestJS)
+- **Framework**: NestJS with TypeScript
+- **Database**: MySQL with TypeORM
+- **Authentication**: JWT with Passport
+- **File Upload**: Multer for image handling
+- **Real-time**: Socket.IO for WebSocket communication
+- **Validation**: class-validator and class-transformer
 
+### Frontend (Vanilla JS)
+- **UI**: Responsive HTML/CSS/JavaScript
+- **Real-time**: Socket.IO client
+- **File Upload**: FormData API
+- **Authentication**: JWT tokens
+
+### Database Schema
+- **Users**: External ID system for multi-app support
+- **Conversations**: Many-to-many with participants
+- **Messages**: Text and image support with status tracking
+- **Conversation Participants**: Junction table for user-conversation relationships
+
+## 📋 Prerequisites
+
+- Node.js 18+
+- MySQL 8.0+
+- npm or yarn
+
+## 🛠️ Installation
+
+1. **Clone and install dependencies:**
 ```bash
-$ npm install
+git clone <repository-url>
+cd chat-service
+npm install
 ```
 
-## Compile and run the project
-
+2. **Environment Setup:**
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+Edit `.env` with your configuration:
+```env
+PORT=3001
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASS=your_password
+MYSQL_DB=chatdb
+JWT_SHARED_SECRET=your_jwt_secret_here
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+3. **Database Setup:**
+```sql
+CREATE DATABASE chatdb;
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+4. **Start the application:**
+```bash
+npm run start:dev
+```
 
-## Resources
+The application will be available at `http://localhost:3001`
 
-Check out a few resources that may come in handy when working with NestJS:
+## 🔐 Authentication
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### JWT Token Generation
+The application uses JWT tokens for authentication. Sample tokens are pre-generated for testing:
 
-## Support
+```javascript
+const jwt = require('jsonwebtoken');
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+const token = jwt.sign(
+  { sub: 'appA:user123', name: 'John Doe' },
+  process.env.JWT_SHARED_SECRET,
+  { expiresIn: '7d' }
+);
+```
 
-## Stay in touch
+### Available Test Users
+- Alice (appA:alice)
+- Bob (appA:bob)
+- Charlie (appA:charlie)
+- David (appA:david)
+- Eve (appA:eve)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## 📡 API Documentation
 
-## License
+See [API.md](API.md) for detailed endpoint documentation.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## 🎨 Frontend Usage
+
+1. Open `http://localhost:3001` in your browser
+2. Select a user from the sidebar
+3. Click "New Chat" to start a conversation
+4. Send text messages or upload images using the 📎 button
+5. Messages appear in real-time for all participants
+
+### Key Features:
+- **Real-time updates**: Messages appear instantly
+- **Image sharing**: Click 📎 to upload and share images
+- **Read receipts**: See when messages are delivered and read
+- **Typing indicators**: See when others are typing
+- **Responsive design**: Works on desktop and mobile
+
+## 🔧 Development
+
+### Project Structure
+```
+chat-service/
+├── src/
+│   ├── app.controller.ts          # Main app controller
+│   ├── app.module.ts              # Root application module
+│   ├── app.service.ts             # Main app service
+│   ├── main.ts                    # Application entry point
+│   ├── auth/                      # Authentication module
+│   │   ├── jwt.strategy.ts        # JWT strategy
+│   │   ├── jwt.guard.ts          # JWT guard
+│   │   └── ws-jwt.guard.ts       # WebSocket JWT guard
+│   ├── entities/                  # Database entities
+│   │   ├── user.entity.ts         # User entity
+│   │   ├── conversation.entity.ts # Conversation entity
+│   │   └── message.entity.ts      # Message entity
+│   ├── conversations/             # Conversation management
+│   ├── messages/                  # Message handling
+│   │   ├── messages.controller.ts # REST endpoints
+│   │   ├── messages.service.ts    # Business logic
+│   │   ├── messages.gateway.ts    # WebSocket gateway
+│   │   └── messages.module.ts     # Messages module
+│   └── users/                     # User management
+├── frontend/
+│   └── index.html                 # Web interface
+├── test/                          # Test files
+└── uploads/                       # Uploaded files (created automatically)
+```
+
+### Key Technologies
+
+- **NestJS**: Progressive Node.js framework
+- **TypeORM**: TypeScript ORM for database operations
+- **Socket.IO**: Real-time bidirectional communication
+- **JWT**: JSON Web Tokens for authentication
+- **Multer**: Middleware for handling file uploads
+- **MySQL**: Relational database
+- **class-validator**: Validation decorators
+
+## 🚀 Deployment
+
+1. **Build the application:**
+```bash
+npm run build
+```
+
+2. **Start in production:**
+```bash
+npm run start:prod
+```
+
+3. **Environment variables** must be set for production
+4. **Database** should be configured and accessible
+5. **File upload directory** (`/home/assets/chat/uploads`) must be writable
+
+## 📝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
