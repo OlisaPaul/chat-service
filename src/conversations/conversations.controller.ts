@@ -11,7 +11,7 @@ export class ConversationsController {
   @Post('private/:otherUserId')
   async createPrivateConversation(
     @Request() req,
-    @Param('otherUserId') otherUserId: string,
+    @Param('otherUserId') otherUserId: number,
   ) {
     const currentUser = req.user as User;
     const conversation = await this.conversationsService.createPrivateConversation(

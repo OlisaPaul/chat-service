@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Conversation, ConversationType } from '../entities/conversation.entity';
-import { ConversationParticipant, ParticipantRole } from '../entities/conversation-participant.entity';
+import {
+  Conversation,
+  ConversationType,
+} from '../entities/conversation.entity';
+import {
+  ConversationParticipant,
+  ParticipantRole,
+} from '../entities/conversation-participant.entity';
 import { User } from '../entities/user.entity';
 import { UsersService } from '../users/users.service';
 
@@ -22,17 +28,20 @@ export class ConversationsService {
     return participantIds.sort((a, b) => a - b).join(',');
   }
 
-  async createPrivateConversation(currentUser: User, otherExternalId: string): Promise<Conversation> {
+  async createPrivateConversation(
+    currentUser: User,
+    otherExternalId: number,
+  ): Promise<Conversation> {
     // Ensure the other user exists
     let otherUser = await this.usersRepository.findOne({
-      where: { externalId: otherExternalId },
+      where: { id: otherExternalId },
     });
 
     // Create user if they don't exist yet
     if (!otherUser) {
       otherUser = this.usersRepository.create({
-        externalId: otherExternalId,
-        name: otherExternalId.split(':').pop() ?? '',
+        externalId: otherExternalId.toString(),
+        name: otherExternalId.toString().split(':').pop() ?? '',
       });
       await this.usersRepository.save(otherUser);
     }
@@ -52,14 +61,18 @@ export class ConversationsService {
     if (existingConversation) {
       console.log('Found existing conversation:', existingConversation.id);
       // Reload with full relations
-      return await this.conversationsRepository.findOne({
+      return (await this.conversationsRepository.findOne({
         where: { id: existingConversation.id },
         relations: ['participants', 'participants.user'],
-      }) as Conversation;
+      })) as Conversation;
     }
 
     // Create new private conversation
-    console.log('Creating new conversation between users:', currentUser.id, otherUser.id);
+    console.log(
+      'Creating new conversation between users:',
+      currentUser.id,
+      otherUser.id,
+    );
 
     // Create sorted participant IDs for deterministic hash
     const participantIds = [currentUser.id, otherUser.id].sort((a, b) => a - b);
@@ -69,7 +82,8 @@ export class ConversationsService {
       type: 'private' as ConversationType,
       participantIdsHash,
     });
-    const savedConversation = await this.conversationsRepository.save(conversation);
+    const savedConversation =
+      await this.conversationsRepository.save(conversation);
 
     // Create participant records
     const participants = [
@@ -87,25 +101,29 @@ export class ConversationsService {
     await this.participantsRepository.save(participants);
 
     // Return conversation with participants
-    return await this.conversationsRepository.findOne({
+    return (await this.conversationsRepository.findOne({
       where: { id: savedConversation.id },
       relations: ['participants', 'participants.user'],
-    }) as Conversation;
+    })) as Conversation;
   }
 
   async getUserConversations(user: User) {
     const participants = await this.participantsRepository.find({
       where: { user: { id: user.id } },
-      relations: ['conversation', 'conversation.participants', 'conversation.participants.user'],
+      relations: [
+        'conversation',
+        'conversation.participants',
+        'conversation.participants.user',
+      ],
       order: { conversation: { updatedAt: 'DESC' } },
     });
 
-    return participants.map(participant => {
+    return participants.map((participant) => {
       const conversation = participant.conversation;
       return {
         id: conversation.id,
         type: conversation.type,
-        participants: conversation.participants.map(p => ({
+        participants: conversation.participants.map((p) => ({
           id: p.user.id,
           externalId: p.user.externalId,
           name: p.user.name,
@@ -119,10 +137,17 @@ export class ConversationsService {
     });
   }
 
-  async getConversationById(id: number, user: User): Promise<Conversation | null> {
+  async getConversationById(
+    id: number,
+    user: User,
+  ): Promise<Conversation | null> {
     const participant = await this.participantsRepository.findOne({
       where: { conversation: { id }, user: { id: user.id } },
-      relations: ['conversation', 'conversation.participants', 'conversation.participants.user'],
+      relations: [
+        'conversation',
+        'conversation.participants',
+        'conversation.participants.user',
+      ],
     });
 
     return participant?.conversation || null;

@@ -1,4 +1,6 @@
-import {config} from 'dotenv'
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+// import {config} from 'dotenv'
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
@@ -12,10 +14,20 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { UsersModule } from './users/users.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { MessagesModule } from './messages/messages.module';
-config()
+import { PresenceModule } from './presence/presence.module';
+// config()
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    JwtModule.registerAsync({
+      useFactory: (config: ConfigService) => ({
+        secret: config.get('JWT_SHARED_SECRET'),
+      }),
+      inject: [ConfigService],
+    }),
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.MYSQL_HOST,
@@ -30,6 +42,7 @@ config()
     PassportModule.register({ defaultStrategy: 'jwt-chat' }),
     UsersModule,
     ConversationsModule,
+    PresenceModule,
     MessagesModule,
   ],
   controllers: [AppController],

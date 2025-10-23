@@ -20,7 +20,7 @@ export class UsersController {
   @Get()
   @UseGuards(JwtAuthGuard)
   async getAllUsers(@Request() req) {
-    const currentUser = req.user;
+    const currentUser = req.user
     return this.usersService.findAllExcept(currentUser.id);
   }
 
