@@ -36,7 +36,28 @@ config()
           cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
         },
       }),
-      limits: { fileSize: 5 * 1024 * 1024 }, // limit: 5MB
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = [
+          // Images
+          'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+          // Videos
+          'video/mp4', 'video/webm', 'video/ogg',
+          // Documents
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+          'application/msword', // .doc
+          'application/vnd.ms-excel', // .xls
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+          'text/csv'
+        ];
+
+        if (allowedTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('File type not allowed'), false);
+        }
+      },
+      limits: { fileSize: 50 * 1024 * 1024 }, // limit: 50MB for videos
     }),
     ConversationsModule,
   ],

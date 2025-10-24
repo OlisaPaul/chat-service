@@ -29,8 +29,19 @@ export class MessagesController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(@UploadedFile() file) {
     if (!file) throw new BadRequestException('No file uploaded');
+
+    // Determine media type based on mimetype
+    let mediaType: string;
+    if (file.mimetype.startsWith('image/')) {
+      mediaType = 'image';
+    } else if (file.mimetype.startsWith('video/')) {
+      mediaType = 'video';
+    } else {
+      mediaType = 'document';
+    }
+
     const fileUrl = `/assets/chat/uploads/${file.filename}`;
-    return { url: fileUrl };
+    return { url: fileUrl, mediaType };
   }
 
   @Post(':conversationId')

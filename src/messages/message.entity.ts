@@ -23,7 +23,10 @@ export class Message {
   content?: string;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
-  imageUrl?: string;
+  mediaUrl?: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  mediaType?: string; // 'image', 'video', 'document'
 
   @Column({
     type: 'enum',

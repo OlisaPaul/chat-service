@@ -41,11 +41,14 @@ export class MessagesGateway implements OnGatewayConnection {
 
       // Auto-join all user's conversation rooms
       const user = await this.messagesService.findUserByExternalId(payload.sub);
-      const userConversations = await this.conversationsService.getUserConversations(user);
+      const userConversations =
+        await this.conversationsService.getUserConversations(user);
 
       for (const conversation of userConversations) {
         socket.join(`conversation:${conversation.id}`);
-        console.log(`📍 ${payload.name} joined conversation room: ${conversation.id}`);
+        console.log(
+          `📍 ${payload.name} joined conversation room: ${conversation.id}`,
+        );
       }
 
       console.log(`🟢 ${payload.name} connected successfully via WebSocket`);
@@ -68,7 +71,8 @@ export class MessagesGateway implements OnGatewayConnection {
   // ✅ Send a message and broadcast it to the room
   @SubscribeMessage('send_message')
   async handleMessage(
-    @MessageBody() data: { conversationId: number; content?: string; imageUrl?: string },
+    @MessageBody()
+    data: { conversationId: number; content?: string; mediaUrl?: string; mediaType?: string },
     @ConnectedSocket() socket: Socket,
   ) {
     const userPayload = socket.data.user;
@@ -79,7 +83,8 @@ export class MessagesGateway implements OnGatewayConnection {
       user,
       data.conversationId,
       data.content,
-      data.imageUrl,
+      data.mediaUrl,
+      data.mediaType,
     );
 
     // Mark message as delivered since recipient is connected
@@ -110,6 +115,7 @@ export class MessagesGateway implements OnGatewayConnection {
       userId: userPayload.sub,
       userName: userPayload.name,
       isTyping: true,
+      conversationId,
     });
   }
 
@@ -123,6 +129,7 @@ export class MessagesGateway implements OnGatewayConnection {
       userId: userPayload.sub,
       userName: userPayload.name,
       isTyping: false,
+      conversationId,
     });
   }
 
@@ -133,18 +140,21 @@ export class MessagesGateway implements OnGatewayConnection {
     @ConnectedSocket() socket: Socket,
   ) {
     const userPayload = socket.data.user;
-    const user = await this.messagesService.findUserByExternalId(userPayload.sub);
+    const user = await this.messagesService.findUserByExternalId(
+      userPayload.sub,
+    );
 
-    const updatedMessages = await this.messagesService.markMessagesAsRead(conversationId, user);
+    const updatedMessages = await this.messagesService.markMessagesAsRead(
+      conversationId,
+      user,
+    );
 
     // Broadcast status updates to the conversation room
-    this.server
-      .to(`conversation:${conversationId}`)
-      .emit('messages_read', {
-        conversationId,
-        userId: userPayload.sub,
-        updatedMessages,
-      });
+    this.server.to(`conversation:${conversationId}`).emit('messages_read', {
+      conversationId,
+      userId: userPayload.sub,
+      updatedMessages,
+    });
 
     // Also emit to the sender's socket to ensure they see the updates
     socket.emit('messages_read', {
