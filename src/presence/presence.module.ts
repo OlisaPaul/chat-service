@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PresenceGateway } from './presence.gateway';
+import { PresenceController } from './presence.controller';
 import { UsersModule } from '../users/users.module';
 import { ConfigModule } from '@nestjs/config';
 
@@ -13,6 +14,7 @@ import { ConfigModule } from '@nestjs/config';
     ConfigModule,
   ],
   providers: [PresenceGateway],
+  controllers: [PresenceController],
   exports: [PresenceGateway],
 })
 export class PresenceModule {}

@@ -17,7 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-chat') {
     const user = await this.usersService.upsertExternalUser(
       payload.sub,
       payload.name,
-      payload.avatarUrl
+      payload.avatarUrl,
     );
     return user;
   }
