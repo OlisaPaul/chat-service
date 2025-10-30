@@ -41,6 +41,26 @@ A comprehensive real-time chat application built with NestJS, TypeORM, MySQL, an
 - MySQL 8.0+
 - npm or yarn
 
+## 🔧 Socket.IO Admin Dashboard
+
+For real-time monitoring of socket connections and presence:
+
+1. **Access the dashboard:**
+   ```
+   http://localhost:3001/presence-monitor
+   ```
+
+2. **Login credentials:**
+   - Username: `admin` (configured via ADMIN_USERNAME env var)
+   - Password: `admin123` (configured via ADMIN_PASSWORD env var)
+
+3. **Features:**
+   - Real-time socket connection monitoring
+   - Active namespaces and rooms
+   - Online users tracking
+   - Recent events log
+   - Connection statistics
+
 ## 🛠️ Installation
 
 1. **Clone and install dependencies:**
@@ -64,6 +84,10 @@ MYSQL_USER=root
 MYSQL_PASS=your_password
 MYSQL_DB=chatdb
 JWT_SHARED_SECRET=your_jwt_secret_here
+
+# Socket.IO Admin UI Configuration (Optional)
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
 ```
 
 3. **Database Setup:**
