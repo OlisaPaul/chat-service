@@ -39,18 +39,22 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { externalId } });
   }
 
-  async findAllExcept(externalId: number) {
+  async findAllExcept(externalId: number, limit?: number, offset?: number) {
     return this.usersRepository.find({
       where: { id: Not(externalId) },
       select: ['id', 'externalId', 'name'],
+      take: limit,
+      skip: offset,
     });
   }
 
-  async findByExternalIds(externalIds: string[]) {
+  async findByExternalIds(externalIds: string[], limit?: number, offset?: number) {
     if (!externalIds.length) return [];
     return this.usersRepository.find({
       where: externalIds.map((id) => ({ externalId: id })),
       select: ['id', 'externalId', 'name'],
+      take: limit,
+      skip: offset,
     });
   }
 }

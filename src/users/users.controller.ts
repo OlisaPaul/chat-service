@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -6,6 +6,7 @@ import {
   ApiResponse,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -38,28 +39,52 @@ export class UsersController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all users except current user' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of users to retrieve',
+    example: 20,
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    description: 'Number of users to skip',
+    example: 0,
+  })
   @ApiResponse({
     status: 200,
     description: 'List of all users except current user',
     type: [UserResponseDto],
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async getAllUsers(@Request() req) {
+  async getAllUsers(@Request() req, @Query('limit') limit = 20, @Query('offset') offset = 0) {
     const currentUser = req.user
-    return this.usersService.findAllExcept(currentUser.id);
+    return this.usersService.findAllExcept(currentUser.id, Number(limit), Number(offset));
   }
 
   @Get('online')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get currently online users' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of users to retrieve',
+    example: 20,
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    description: 'Number of users to skip',
+    example: 0,
+  })
   @ApiResponse({
     status: 200,
     description: 'List of currently online users',
     type: [UserResponseDto],
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async getOnlineUsers() {
+  async getOnlineUsers(@Query('limit') limit = 20, @Query('offset') offset = 0) {
     const ids = this.presenceGateway.getOnlineUserIds();
-    return this.usersService.findByExternalIds(ids);
+    return this.usersService.findByExternalIds(ids, Number(limit), Number(offset));
   }
 }

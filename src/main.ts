@@ -10,6 +10,7 @@ config()
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.enableCors();
+  app.setGlobalPrefix('api/v1');
   app.useStaticAssets('/home/assets', {
     prefix: '/assets/',
   });
