@@ -12,6 +12,7 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UserResponseDto } from './dto/user-response.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -39,52 +40,28 @@ export class UsersController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all users except current user' })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Number of users to retrieve',
-    example: 20,
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    description: 'Number of users to skip',
-    example: 0,
-  })
   @ApiResponse({
     status: 200,
     description: 'List of all users except current user',
     type: [UserResponseDto],
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async getAllUsers(@Request() req, @Query('limit') limit = 20, @Query('offset') offset = 0) {
-    const currentUser = req.user
-    return this.usersService.findAllExcept(currentUser.id, Number(limit), Number(offset));
+  async getAllUsers(@Request() req, @Query() paginationDto: PaginationDto) {
+    const currentUser = req.user;
+    return this.usersService.findAllExcept(currentUser.id, paginationDto);
   }
 
   @Get('online')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get currently online users' })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Number of users to retrieve',
-    example: 20,
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    description: 'Number of users to skip',
-    example: 0,
-  })
   @ApiResponse({
     status: 200,
     description: 'List of currently online users',
     type: [UserResponseDto],
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async getOnlineUsers(@Query('limit') limit = 20, @Query('offset') offset = 0) {
+  async getOnlineUsers(@Query() paginationDto: PaginationDto) {
     const ids = this.presenceGateway.getOnlineUserIds();
-    return this.usersService.findByExternalIds(ids, Number(limit), Number(offset));
+    return this.usersService.findByExternalIds(ids, paginationDto);
   }
 }

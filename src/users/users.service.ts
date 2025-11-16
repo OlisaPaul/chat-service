@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
 import { User } from '../entities/user.entity';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { getPaginationResponse } from 'src/common/helper-functions/get-pagination-meta';
 
 @Injectable()
 export class UsersService {
@@ -39,22 +41,22 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { externalId } });
   }
 
-  async findAllExcept(externalId: number, limit?: number, offset?: number) {
-    return this.usersRepository.find({
-      where: { id: Not(externalId) },
-      select: ['id', 'externalId', 'name'],
-      take: limit,
-      skip: offset,
-    });
+  async findAllExcept(externalId: number, paginationDto: PaginationDto) {
+    const qb = this.usersRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.externalId', 'user.name'])
+      .where('user.id != :externalId', { externalId });
+
+    return getPaginationResponse(paginationDto, qb);
   }
 
-  async findByExternalIds(externalIds: string[], limit?: number, offset?: number) {
+  async findByExternalIds(externalIds: string[], paginationDto: PaginationDto) {
     if (!externalIds.length) return [];
-    return this.usersRepository.find({
-      where: externalIds.map((id) => ({ externalId: id })),
-      select: ['id', 'externalId', 'name'],
-      take: limit,
-      skip: offset,
-    });
+    const qb = this.usersRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.externalId', 'user.name'])
+      .where('user.externalId IN (:...externalIds)', { externalIds });
+
+    return getPaginationResponse(paginationDto, qb);
   }
 }

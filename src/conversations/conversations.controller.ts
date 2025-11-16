@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseGuards,
+  Request,
+  Query,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -11,6 +19,7 @@ import { ConversationsService } from './conversations.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { User } from '../entities/user.entity';
 import { ConversationResponseDto } from './dto/conversation-response.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Conversations')
 @ApiBearerAuth('JWT-auth')
@@ -37,19 +46,21 @@ export class ConversationsController {
     @Param('otherUserId') otherUserId: number,
   ) {
     const currentUser = req.user as User;
-    const conversation = await this.conversationsService.createPrivateConversation(
-      currentUser,
-      otherUserId,
-    );
+    const conversation =
+      await this.conversationsService.createPrivateConversation(
+        currentUser,
+        otherUserId,
+      );
 
     return {
       id: conversation.id,
-      participants: conversation.participants?.map(p => ({
-        id: p.user?.id,
-        externalId: p.user?.externalId,
-        name: p.user?.name,
-        avatarUrl: p.user?.avatarUrl,
-      })) || [],
+      participants:
+        conversation.participants?.map((p) => ({
+          id: p.user?.id,
+          externalId: p.user?.externalId,
+          name: p.user?.name,
+          avatarUrl: p.user?.avatarUrl,
+        })) || [],
       createdAt: conversation.createdAt,
     };
   }
@@ -62,8 +73,14 @@ export class ConversationsController {
     type: [ConversationResponseDto],
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async getUserConversations(@Request() req) {
+  async getUserConversations(
+    @Request() req,
+    @Query() paginationDto: PaginationDto,
+  ) {
     const currentUser = req.user as User;
-    return this.conversationsService.getUserConversations(currentUser);
+    return this.conversationsService.getUserConversations(
+      currentUser,
+      paginationDto,
+    );
   }
 }

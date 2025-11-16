@@ -29,6 +29,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { MessagesGateway } from './messages.gateway';
 import { SendMessageDto } from './dto/send-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Messages')
 @ApiBearerAuth('JWT-auth')
@@ -128,18 +129,6 @@ export class MessagesController {
     description: 'ID of the conversation',
     example: 1,
   })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Number of messages to retrieve',
-    example: 20,
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    description: 'Number of messages to skip',
-    example: 0,
-  })
   @ApiResponse({
     status: 200,
     description: 'List of messages',
@@ -149,14 +138,12 @@ export class MessagesController {
   async list(
     @Param('conversationId') id: number,
     @Request() req,
-    @Query('limit') limit = 20,
-    @Query('offset') offset = 0,
+    @Query() paginationDto: PaginationDto,
   ) {
     return this.service.getMessages(
       id,
       req.user,
-      Number(limit),
-      Number(offset),
+      paginationDto
     );
   }
 }
