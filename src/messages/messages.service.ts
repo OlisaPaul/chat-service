@@ -87,7 +87,7 @@ export class MessagesService {
       (m) => new MessageResponseDto(m, currentUser),
     );
 
-    return getPaginationResponse(paginationDto, qb, messages, total);
+    return getPaginationResponse(paginationDto, qb, mappedMessages, total);
   }
 
   async markMessagesAsRead(conversationId: number, user: User) {

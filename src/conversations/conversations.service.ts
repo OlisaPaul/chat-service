@@ -156,7 +156,7 @@ export class ConversationsService {
     if (!paginationDto) {
       return mappedData;
     } else {
-      return await getPaginationResponse(paginationDto, qb, data, total);
+      return await getPaginationResponse(paginationDto, qb, mappedData, total);
     }
   }
 
