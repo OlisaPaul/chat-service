@@ -43,7 +43,7 @@ export class MessagesController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload a file (image, video, or document)' })
+  @ApiOperation({ summary: 'Upload a file (image, video, audio, or document)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -52,7 +52,7 @@ export class MessagesController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'File to upload (image, video, or document)',
+          description: 'File to upload (image, video, audio, or document)',
         },
       },
     },
@@ -64,7 +64,7 @@ export class MessagesController {
       type: 'object',
       properties: {
         url: { type: 'string', example: '/assets/chat/uploads/file-123.mp4' },
-        mediaType: { type: 'string', enum: ['image', 'video', 'document'], example: 'video' },
+        mediaType: { type: 'string', enum: ['image', 'video', 'audio', 'document'], example: 'video' },
       },
     },
   })
@@ -79,6 +79,8 @@ export class MessagesController {
       mediaType = 'image';
     } else if (file.mimetype.startsWith('video/')) {
       mediaType = 'video';
+    } else if (file.mimetype.startsWith('audio/')) {
+      mediaType = 'audio';
     } else {
       mediaType = 'document';
     }
