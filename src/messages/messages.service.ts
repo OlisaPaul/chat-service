@@ -5,6 +5,11 @@ import { Message, MessageStatus } from './message.entity';
 import { Conversation } from '../entities/conversation.entity';
 import { User } from '../entities/user.entity';
 import { MessageResponseDto } from './dto/message-response.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+import {
+  getPaginatedData,
+  getPaginationResponse,
+} from 'src/common/helper-functions/get-pagination-meta';
 
 @Injectable()
 export class MessagesService {
@@ -20,7 +25,13 @@ export class MessagesService {
     return user;
   }
 
-  async sendMessage(user: User, conversationId: number, content?: string, mediaUrl?: string, mediaType?: string) {
+  async sendMessage(
+    user: User,
+    conversationId: number,
+    content?: string,
+    mediaUrl?: string,
+    mediaType?: string,
+  ) {
     // Check if user is part of the conversation using the new participant system
     const participant = await this.convoRepo
       .createQueryBuilder('c')
@@ -29,7 +40,8 @@ export class MessagesService {
       .andWhere('p.user.id = :userId', { userId: user.id })
       .getOne();
 
-    if (!participant) throw new NotFoundException('User not part of this conversation');
+    if (!participant)
+      throw new NotFoundException('User not part of this conversation');
 
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId },
@@ -48,7 +60,11 @@ export class MessagesService {
     return new MessageResponseDto(saved, user);
   }
 
-  async getMessages(conversationId: number, currentUser: User, limit = 20, offset = 0) {
+  async getMessages(
+    conversationId: number,
+    currentUser: User,
+    paginationDto: PaginationDto,
+  ) {
     // First check if user is part of the conversation
     const participant = await this.convoRepo
       .createQueryBuilder('c')
@@ -57,16 +73,21 @@ export class MessagesService {
       .andWhere('p.user.id = :userId', { userId: currentUser.id })
       .getOne();
 
-    if (!participant) throw new NotFoundException('User not part of this conversation');
+    if (!participant)
+      throw new NotFoundException('User not part of this conversation');
 
-    const messages = await this.messageRepo.find({
-      where: { conversation: { id: conversationId } },
-      relations: ['sender'],
-      order: { createdAt: 'DESC' },
-      skip: offset,
-      take: limit,
-    });
-    return messages.map((m) => new MessageResponseDto(m, currentUser));
+    const qb = this.messageRepo
+      .createQueryBuilder('message')
+      .leftJoinAndSelect('message.sender', 'sender')
+      .where('message.conversationId = :conversationId', { conversationId })
+      .orderBy('message.createdAt', 'DESC');
+
+    const { data: messages, total } = await getPaginatedData(paginationDto, qb);
+    const mappedMessages = messages.map(
+      (m) => new MessageResponseDto(m, currentUser),
+    );
+
+    return getPaginationResponse(paginationDto, qb, mappedMessages, total);
   }
 
   async markMessagesAsRead(conversationId: number, user: User) {
@@ -78,7 +99,8 @@ export class MessagesService {
       .andWhere('p.user.id = :userId', { userId: user.id })
       .getOne();
 
-    if (!participant) throw new NotFoundException('User not part of this conversation');
+    if (!participant)
+      throw new NotFoundException('User not part of this conversation');
 
     // Update all unread messages from other users to READ
     await this.messageRepo
@@ -94,7 +116,7 @@ export class MessagesService {
     const updatedMessages = await this.messageRepo.find({
       where: {
         conversation: { id: conversationId },
-        sender: { id: user.id } // Only return messages from current user that were marked as read
+        sender: { id: user.id }, // Only return messages from current user that were marked as read
       },
       relations: ['sender'],
     });

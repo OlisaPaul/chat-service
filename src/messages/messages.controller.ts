@@ -29,6 +29,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { MessagesGateway } from './messages.gateway';
 import { SendMessageDto } from './dto/send-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Messages')
 @ApiBearerAuth('JWT-auth')
@@ -42,7 +43,7 @@ export class MessagesController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload a file (image, video, or document)' })
+  @ApiOperation({ summary: 'Upload a file (image, video, audio, or document)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -51,7 +52,7 @@ export class MessagesController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'File to upload (image, video, or document)',
+          description: 'File to upload (image, video, audio, or document)',
         },
       },
     },
@@ -63,7 +64,7 @@ export class MessagesController {
       type: 'object',
       properties: {
         url: { type: 'string', example: '/assets/chat/uploads/file-123.mp4' },
-        mediaType: { type: 'string', enum: ['image', 'video', 'document'], example: 'video' },
+        mediaType: { type: 'string', enum: ['image', 'video', 'audio', 'document'], example: 'video' },
       },
     },
   })
@@ -78,6 +79,8 @@ export class MessagesController {
       mediaType = 'image';
     } else if (file.mimetype.startsWith('video/')) {
       mediaType = 'video';
+    } else if (file.mimetype.startsWith('audio/')) {
+      mediaType = 'audio';
     } else {
       mediaType = 'document';
     }
@@ -128,18 +131,6 @@ export class MessagesController {
     description: 'ID of the conversation',
     example: 1,
   })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Number of messages to retrieve',
-    example: 20,
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    description: 'Number of messages to skip',
-    example: 0,
-  })
   @ApiResponse({
     status: 200,
     description: 'List of messages',
@@ -149,14 +140,12 @@ export class MessagesController {
   async list(
     @Param('conversationId') id: number,
     @Request() req,
-    @Query('limit') limit = 20,
-    @Query('offset') offset = 0,
+    @Query() paginationDto: PaginationDto,
   ) {
     return this.service.getMessages(
       id,
       req.user,
-      Number(limit),
-      Number(offset),
+      paginationDto
     );
   }
 }

@@ -11,6 +11,11 @@ import {
 } from '../entities/conversation-participant.entity';
 import { User } from '../entities/user.entity';
 import { UsersService } from '../users/users.service';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+import {
+  getPaginatedData,
+  getPaginationResponse,
+} from 'src/common/helper-functions/get-pagination-meta';
 
 @Injectable()
 export class ConversationsService {
@@ -107,18 +112,31 @@ export class ConversationsService {
     })) as Conversation;
   }
 
-  async getUserConversations(user: User) {
-    const participants = await this.participantsRepository.find({
-      where: { user: { id: user.id } },
-      relations: [
-        'conversation',
+  async getUserConversations(user: User, paginationDto?: PaginationDto) {
+    let data: any;
+    let total: number;
+    const qb = this.participantsRepository
+      .createQueryBuilder('participant')
+      .leftJoinAndSelect('participant.conversation', 'conversation')
+      .leftJoinAndSelect(
         'conversation.participants',
-        'conversation.participants.user',
-      ],
-      order: { conversation: { updatedAt: 'DESC' } },
-    });
-
-    return participants.map((participant) => {
+        'conversationParticipants',
+      )
+      .leftJoinAndSelect(
+        'conversationParticipants.user',
+        'conversationParticipantsUser',
+      )
+      .where('participant.user = :userId', { userId: user.id })
+      .orderBy('conversation.updatedAt', 'DESC');
+    if (paginationDto) {
+      const paginatedData = await getPaginatedData(paginationDto, qb);
+      data = paginatedData.data;
+      total = paginatedData.total;
+    } else {
+      data = qb.getMany();
+      return data;
+    }
+    const mappedData = data.map((participant) => {
       const conversation = participant.conversation;
       return {
         id: conversation.id,
@@ -135,6 +153,11 @@ export class ConversationsService {
         // TODO: Add lastMessage when messages are implemented
       };
     });
+    if (!paginationDto) {
+      return mappedData;
+    } else {
+      return await getPaginationResponse(paginationDto, qb, mappedData, total);
+    }
   }
 
   async getConversationById(

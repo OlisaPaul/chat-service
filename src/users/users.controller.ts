@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -6,11 +6,13 @@ import {
   ApiResponse,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UserResponseDto } from './dto/user-response.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -44,9 +46,9 @@ export class UsersController {
     type: [UserResponseDto],
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async getAllUsers(@Request() req) {
-    const currentUser = req.user
-    return this.usersService.findAllExcept(currentUser.id);
+  async getAllUsers(@Request() req, @Query() paginationDto: PaginationDto) {
+    const currentUser = req.user;
+    return this.usersService.findAllExcept(currentUser.id, paginationDto);
   }
 
   @Get('online')
@@ -58,8 +60,8 @@ export class UsersController {
     type: [UserResponseDto],
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async getOnlineUsers() {
+  async getOnlineUsers(@Query() paginationDto: PaginationDto) {
     const ids = this.presenceGateway.getOnlineUserIds();
-    return this.usersService.findByExternalIds(ids);
+    return this.usersService.findByExternalIds(ids, paginationDto);
   }
 }
