@@ -1,5 +1,5 @@
 import {config} from 'dotenv'
-import { Module } from '@nestjs/common';
+import { BadRequestException, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { MulterModule } from '@nestjs/platform-express';
@@ -42,6 +42,8 @@ config()
           'image/jpeg', 'image/png', 'image/gif', 'image/webp',
           // Videos
           'video/mp4', 'video/webm', 'video/ogg',
+          // Audio
+          'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/mp4',
           // Documents
           'application/pdf',
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -54,7 +56,7 @@ config()
         if (allowedTypes.includes(file.mimetype)) {
           cb(null, true);
         } else {
-          cb(new Error('File type not allowed'), false);
+          cb(new BadRequestException('File type not allowed'), false);
         }
       },
       limits: { fileSize: 50 * 1024 * 1024 }, // limit: 50MB for videos
