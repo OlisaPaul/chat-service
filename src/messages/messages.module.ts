@@ -26,7 +26,7 @@ config()
     MulterModule.register({
       storage: diskStorage({
         destination: (req, file, cb) => {
-          const uploadPath = '/home/assets/chat/uploads';
+          const uploadPath = process.env.UPLOAD_PATH || '/home/assets/chat/uploads';
           if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
           cb(null, uploadPath);
         },
