@@ -85,7 +85,7 @@ export class MessagesController {
       mediaType = 'document';
     }
 
-    const fileUrl = `/assets/chat/uploads/${file.filename}`;
+    const fileUrl = `/api/v1/assets/chat/uploads/${file.filename}`;
     return { url: fileUrl, mediaType };
   }
 
