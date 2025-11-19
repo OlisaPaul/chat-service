@@ -18,7 +18,11 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "sync:postman": "node scripts/sync-postman.js"
+    "sync:postman": "node scripts/sync-postman.js",
+    "migration:create": "typeorm migration:create",
+    "migration:run": "npm run build && typeorm migration:run -d dist/src/config/data-source.js",
+    "migration:revert": "npm run build && typeorm migration:revert -d dist/src/config/data-source.js",
+    "migration:show": "npm run build && typeorm migration:show -d dist/src/config/data-source.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
