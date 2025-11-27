@@ -18,6 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-chat') {
       payload.sub,
       payload.name,
       payload.avatarUrl,
+      payload.role,
     );
     return user;
   }

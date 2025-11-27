@@ -19,4 +19,11 @@ export class CreateUserDto {
     example: 'https://example.com/avatar.jpg',
   })
   avatarUrl?: string;
+
+  @ApiProperty({
+    description: 'User role',
+    required: false,
+    example: 'billable',
+  })
+  role?: string;
 }

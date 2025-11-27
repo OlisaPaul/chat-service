@@ -16,6 +16,7 @@ export class UsersService {
     externalId: string,
     name: string,
     avatarUrl?: string,
+    role?: string,
   ): Promise<User> {
     let user = await this.usersRepository.findOne({ where: { externalId } });
 
@@ -25,6 +26,9 @@ export class UsersService {
       if (avatarUrl !== undefined) {
         user.avatarUrl = avatarUrl;
       }
+      if (role !== undefined) {
+        user.role = role;
+      }
       return this.usersRepository.save(user);
     } else {
       // Create new user
@@ -32,6 +36,7 @@ export class UsersService {
         externalId,
         name,
         avatarUrl,
+        role: role,
       });
       return this.usersRepository.save(newUser);
     }
