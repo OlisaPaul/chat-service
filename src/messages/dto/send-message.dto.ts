@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsIn, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 export class SendMessageDto {
   @ApiProperty({
@@ -6,6 +7,8 @@ export class SendMessageDto {
     required: false,
     example: 'Hello, world!',
   })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
   content?: string;
 
   @ApiProperty({
@@ -13,6 +16,8 @@ export class SendMessageDto {
     required: false,
     example: '/assets/chat/uploads/file-123.mp4',
   })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
   mediaUrl?: string;
 
   @ApiProperty({
@@ -21,5 +26,7 @@ export class SendMessageDto {
     enum: ['image', 'video', 'document'],
     example: 'video',
   })
+  @IsOptional()
+  @IsIn(['image', 'video', 'audio', 'document'])
   mediaType?: string;
 }

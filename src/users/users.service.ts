@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
-import { User } from '../entities/user.entity';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { getPaginationResponse } from 'src/common/helper-functions/get-pagination-meta';
+import { Repository } from 'typeorm';
+import { User, UserRole } from '../entities/user.entity';
+import { PaginationDto } from '../common/dto/pagination.dto';
+import { getPaginationResponse } from '../common/helper-functions/get-pagination-meta';
 
 @Injectable()
 export class UsersService {
@@ -16,7 +16,7 @@ export class UsersService {
     externalId: string,
     name: string,
     avatarUrl?: string,
-    role?: string,
+    role?: UserRole,
   ): Promise<User> {
     let user = await this.usersRepository.findOne({ where: { externalId } });
 
@@ -56,7 +56,14 @@ export class UsersService {
   }
 
   async findByExternalIds(externalIds: string[], paginationDto: PaginationDto) {
-    if (!externalIds.length) return [];
+    if (!externalIds.length) {
+      const qb = this.usersRepository
+        .createQueryBuilder('user')
+        .select(['user.id', 'user.externalId', 'user.name'])
+        .where('1 = 0');
+
+      return getPaginationResponse(paginationDto, qb);
+    }
     const qb = this.usersRepository
       .createQueryBuilder('user')
       .select(['user.id', 'user.externalId', 'user.name'])

@@ -1,25 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { UsersService } from '../users/users.service';
+import { ConfigService } from '@nestjs/config';
+import { AuthIdentityService } from './auth-identity.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-chat') {
-  constructor(private usersService: UsersService) {
+  constructor(
+    private readonly authIdentityService: AuthIdentityService,
+    configService: ConfigService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SHARED_SECRET || 'your_shared_secret_here',
+      secretOrKey:
+        configService.get<string>('auth.jwtSecret') ||
+        'your_shared_secret_here',
     });
   }
 
   async validate(payload: any) {
-    const user = await this.usersService.upsertExternalUser(
-      payload.sub,
-      payload.name,
-      payload.avatarUrl,
-      payload.role,
-    );
-    return user;
+    return this.authIdentityService.resolveUserFromPayload(payload);
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -11,11 +11,12 @@ import {
 } from '../entities/conversation-participant.entity';
 import { User } from '../entities/user.entity';
 import { UsersService } from '../users/users.service';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import {
   getPaginatedData,
   getPaginationResponse,
-} from 'src/common/helper-functions/get-pagination-meta';
+} from '../common/helper-functions/get-pagination-meta';
+import { RoleAuthorizationService } from '../auth/role-authorization.service';
 
 @Injectable()
 export class ConversationsService {
@@ -27,6 +28,7 @@ export class ConversationsService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private usersService: UsersService,
+    private roleAuthorizationService: RoleAuthorizationService,
   ) {}
 
   private generateParticipantIdsHash(participantIds: number[]): string {
@@ -35,18 +37,24 @@ export class ConversationsService {
 
   async createPrivateConversation(
     currentUser: User,
-    otherExternalId: number,
+    otherUserIdentifier: string,
   ): Promise<Conversation> {
     // Ensure the other user exists
+    const parsedId = Number(otherUserIdentifier);
+    const isNumericIdentifier =
+      Number.isInteger(parsedId) && String(parsedId) === otherUserIdentifier;
+
     let otherUser = await this.usersRepository.findOne({
-      where: { id: otherExternalId },
+      where: isNumericIdentifier
+        ? { id: parsedId }
+        : { externalId: otherUserIdentifier },
     });
 
     // Create user if they don't exist yet
     if (!otherUser) {
       otherUser = this.usersRepository.create({
-        externalId: otherExternalId.toString(),
-        name: otherExternalId.toString().split(':').pop() ?? '',
+        externalId: otherUserIdentifier.toString(),
+        name: otherUserIdentifier.toString().split(':').pop() ?? '',
       });
       await this.usersRepository.save(otherUser);
     }
@@ -78,6 +86,20 @@ export class ConversationsService {
       currentUser.id,
       otherUser.id,
     );
+
+    // Validate role-based authorization for conversation initiation
+    const canInitiate = this.roleAuthorizationService.canInitiateConversation(
+      currentUser.role,
+      otherUser.role,
+    );
+
+    if (!canInitiate) {
+      const errorMessage = this.roleAuthorizationService.getForbiddenMessage(
+        currentUser.role,
+        otherUser.role,
+      );
+      throw new ForbiddenException(errorMessage);
+    }
 
     // Create sorted participant IDs for deterministic hash
     const participantIds = [currentUser.id, otherUser.id].sort((a, b) => a - b);

@@ -4,12 +4,12 @@ import {
   ApiOperation,
   ApiResponse,
 } from '@nestjs/swagger';
-import { PresenceGateway } from './presence.gateway';
+import { PresenceStateService } from './presence-state.service';
 
 @ApiTags('Presence')
 @Controller('presence')
 export class PresenceController {
-  constructor(private readonly presenceGateway: PresenceGateway) {}
+  constructor(private readonly presenceStateService: PresenceStateService) {}
 
   @Get('online-users')
   @ApiOperation({ summary: 'Get list of currently online users' })
@@ -34,7 +34,7 @@ export class PresenceController {
     },
   })
   getOnlineUsers() {
-    const users = this.presenceGateway.getOnlineUsersDetails();
+    const users = this.presenceStateService.getOnlineUsersDetails();
     return {
       count: users.length,
       users,
@@ -57,9 +57,9 @@ export class PresenceController {
   })
   getStats() {
     return {
-      onlineUsersCount: this.presenceGateway.getOnlineUsersCount(),
-      totalSockets: this.presenceGateway.getOnlineUsersDetails().length,
-      recentEventsCount: this.presenceGateway.getRecentEvents().length,
+      onlineUsersCount: this.presenceStateService.getOnlineUsersCount(),
+      totalSockets: this.presenceStateService.getOnlineUsersDetails().length,
+      recentEventsCount: this.presenceStateService.getRecentEvents().length,
     };
   }
 }

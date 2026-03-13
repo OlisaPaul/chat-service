@@ -13,17 +13,17 @@ const configService = new ConfigService(configuration());
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
-  host: configService.get('MYSQL_HOST') || 'localhost',
-  port: configService.get('MYSQL_PORT') || 3306,
-  username: process.env.MYSQL_USER || '',
-  password: process.env.MYSQL_PASS || '',
-  database: process.env.MYSQL_DB || 'chatdb_test',
+  host: configService.get('database.host') || 'localhost',
+  port: configService.get('database.port') || 3306,
+  username: configService.get('database.username') || '',
+  password: configService.get('database.password') || '',
+  database: configService.get('database.database') || 'chatdb',
   entities: ['dist/**/*.entity{.ts,.js}'],
   migrations: ['dist/src/migrations/*{.ts,.js}'],
   synchronize: false, // Use migrations instead
   logging:
-    configService.get('MYSQL_LOGGING') === 'true' ||
-    (configService.get('MYSQL_LOGGING') !== 'false' &&
+    configService.get('database.logging') === true ||
+    (configService.get('database.logging') !== false &&
       configService.get('NODE_ENV') === 'development'),
   migrationsTableName: 'migrations',
 });

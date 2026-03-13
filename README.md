@@ -1,213 +1,148 @@
-# Chat Service - Multi-User Real-Time Chat Application
+# Chat Service
 
-A comprehensive real-time chat application built with NestJS, TypeORM, MySQL, and Socket.IO. Features JWT authentication, WebSocket communication, image uploads, and message status tracking.
+A self-hostable NestJS communication backend with:
 
-## 🚀 Features
+- real-time chat
+- presence tracking
+- file uploads
+- a reference 1:1 audio-calling flow using Socket.IO signaling plus browser WebRTC
 
-- **Real-time messaging** with WebSocket connections
-- **JWT authentication** for secure API access
-- **Image uploads** with file storage and serving
-- **Message status tracking** (sent, delivered, read)
-- **Conversation management** (private and group chats)
-- **User management** with external ID system
-- **Typing indicators** and read receipts
-- **Responsive web interface**
+The backend is the main product surface. The included [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) is the reference demo for this sprint, not a polished production client.
 
-## 🏗️ Architecture
+## What Works Now
 
-### Backend (NestJS)
-- **Framework**: NestJS with TypeScript
-- **Database**: MySQL with TypeORM
-- **Authentication**: JWT with Passport
-- **File Upload**: Multer for image handling
-- **Real-time**: Socket.IO for WebSocket communication
-- **Validation**: class-validator and class-transformer
+- JWT-authenticated REST API under `/api/v1`
+- Socket.IO messaging and presence events
+- direct/private conversations
+- message history, typing indicators, and read state
+- upload handling for images, video, audio, and supported documents
+- persisted call sessions and call history
+- 1:1 audio call signaling with WebRTC offer/answer/ICE relay
+- reference browser demo for chat plus audio calling
 
-### Frontend (Vanilla JS)
-- **UI**: Responsive HTML/CSS/JavaScript
-- **Real-time**: Socket.IO client
-- **File Upload**: FormData API
-- **Authentication**: JWT tokens
+## Stack
 
-### Database Schema
-- **Users**: External ID system for multi-app support
-- **Conversations**: Many-to-many with participants
-- **Messages**: Text and image support with status tracking
-- **Conversation Participants**: Junction table for user-conversation relationships
+- NestJS
+- TypeORM
+- MySQL
+- Socket.IO
+- Multer
+- Browser WebRTC for audio calling
 
-## 📋 Prerequisites
+## Local Setup
 
-- Node.js 18+
-- MySQL 8.0+
-- npm or yarn
+1. Install dependencies:
 
-## 🔧 Socket.IO Admin Dashboard
-
-For real-time monitoring of socket connections and presence:
-
-1. **Access the dashboard:**
-   ```
-   http://localhost:3001/presence-monitor
-   ```
-
-2. **Login credentials:**
-   - Username: `admin` (configured via ADMIN_USERNAME env var)
-   - Password: `admin123` (configured via ADMIN_PASSWORD env var)
-
-3. **Features:**
-   - Real-time socket connection monitoring
-   - Active namespaces and rooms
-   - Online users tracking
-   - Recent events log
-   - Connection statistics
-
-## 🛠️ Installation
-
-1. **Clone and install dependencies:**
 ```bash
-git clone <repository-url>
-cd chat-service
 npm install
 ```
 
-2. **Environment Setup:**
+2. Create `.env` from [`.env.example`](C:\Users\DEEPIJA\Downloads\chat-service\.env.example):
+
 ```bash
-cp .env.example .env
+copy .env.example .env
 ```
 
-Edit `.env` with your configuration:
-```env
-PORT=3001
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASS=your_password
-MYSQL_DB=chatdb
-JWT_SHARED_SECRET=your_jwt_secret_here
+3. Create the MySQL database named in `MYSQL_DB`.
 
-# Socket.IO Admin UI Configuration (Optional)
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
-```
+4. Start the backend:
 
-3. **Database Setup:**
-```sql
-CREATE DATABASE chatdb;
-```
-
-4. **Start the application:**
 ```bash
 npm run start:dev
 ```
 
-The application will be available at `http://localhost:3001`
+5. Open the reference demo:
 
-## 🔐 Authentication
-
-### JWT Token Generation
-The application uses JWT tokens for authentication. Sample tokens are pre-generated for testing:
-
-```javascript
-const jwt = require('jsonwebtoken');
-
-const token = jwt.sign(
-  { sub: 'appA:user123', name: 'John Doe' },
-  process.env.JWT_SHARED_SECRET,
-  { expiresIn: '7d' }
-);
+```text
+http://localhost:3001/frontend/index.html
 ```
 
-### Available Test Users
-- Alice (appA:alice)
-- Bob (appA:bob)
-- Charlie (appA:charlie)
-- David (appA:david)
-- Eve (appA:eve)
+If static frontend hosting is not wired in your environment, open the file directly from the repo.
 
-## 📡 API Documentation
+## Environment Notes
 
-See [API.md](API.md) for detailed endpoint documentation.
+Important variables:
 
-## 🎨 Frontend Usage
+- `PORT`
+- `API_PREFIX`
+- `MYSQL_HOST`
+- `MYSQL_PORT`
+- `MYSQL_USER`
+- `MYSQL_PASS`
+- `MYSQL_DB`
+- `JWT_SHARED_SECRET`
+- `FEATURE_CALLS`
+- `UPLOAD_PATH`
+- `ASSETS_PATH`
+- `RTC_STUN_URLS`
+- `RTC_TURN_URLS`
+- `RTC_TURN_USERNAME`
+- `RTC_TURN_PASSWORD`
+- `RTC_ICE_TRANSPORT_POLICY`
 
-1. Open `http://localhost:3001` in your browser
-2. Select a user from the sidebar
-3. Click "New Chat" to start a conversation
-4. Send text messages or upload images using the 📎 button
-5. Messages appear in real-time for all participants
+For simple local testing, STUN is usually enough when both browser tabs run on the same machine or local network. For broader real-world connectivity, provide TURN settings.
 
-### Key Features:
-- **Real-time updates**: Messages appear instantly
-- **Image sharing**: Click 📎 to upload and share images
-- **Read receipts**: See when messages are delivered and read
-- **Typing indicators**: See when others are typing
-- **Responsive design**: Works on desktop and mobile
+## Reference Audio Call Demo
 
-## 🔧 Development
+Recommended local flow:
 
-### Project Structure
+1. Start the backend.
+2. Open the reference demo in two browser tabs.
+3. Select `Alice` in one tab and `Bob` in the other.
+4. Allow microphone access in both tabs.
+5. Send a chat message to confirm the conversation is active.
+6. Click `Start audio call` in one tab.
+7. Click `Accept` in the other tab.
+8. Confirm audio connects.
+9. Click `Hang up` to end the call.
+
+Secondary manual checks:
+
+- reject an incoming call
+- cancel a ringing outgoing call
+- disable calling with `FEATURE_CALLS=false`
+- verify chat still works before and after a call
+
+## Schema and Migrations
+
+The calling feature adds:
+
+- `call_sessions`
+- `call_participants`
+
+Migration artifact:
+
+- [`src/migrations/1764861000000-CreateCallTables.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\migrations\1764861000000-CreateCallTables.ts)
+
+The app still supports runtime schema sync in config, but the calling schema is now explicitly represented in migrations and should be treated as part of the supported platform model.
+
+## Testing
+
+Run the current automated suite:
+
+```bash
+npm test -- --runInBand
 ```
-chat-service/
-├── src/
-│   ├── app.controller.ts          # Main app controller
-│   ├── app.module.ts              # Root application module
-│   ├── app.service.ts             # Main app service
-│   ├── main.ts                    # Application entry point
-│   ├── auth/                      # Authentication module
-│   │   ├── jwt.strategy.ts        # JWT strategy
-│   │   ├── jwt.guard.ts          # JWT guard
-│   │   └── ws-jwt.guard.ts       # WebSocket JWT guard
-│   ├── entities/                  # Database entities
-│   │   ├── user.entity.ts         # User entity
-│   │   ├── conversation.entity.ts # Conversation entity
-│   │   └── message.entity.ts      # Message entity
-│   ├── conversations/             # Conversation management
-│   ├── messages/                  # Message handling
-│   │   ├── messages.controller.ts # REST endpoints
-│   │   ├── messages.service.ts    # Business logic
-│   │   ├── messages.gateway.ts    # WebSocket gateway
-│   │   └── messages.module.ts     # Messages module
-│   └── users/                     # User management
-├── frontend/
-│   └── index.html                 # Web interface
-├── test/                          # Test files
-└── uploads/                       # Uploaded files (created automatically)
-```
 
-### Key Technologies
+Build verification:
 
-- **NestJS**: Progressive Node.js framework
-- **TypeORM**: TypeScript ORM for database operations
-- **Socket.IO**: Real-time bidirectional communication
-- **JWT**: JSON Web Tokens for authentication
-- **Multer**: Middleware for handling file uploads
-- **MySQL**: Relational database
-- **class-validator**: Validation decorators
-
-## 🚀 Deployment
-
-1. **Build the application:**
 ```bash
 npm run build
 ```
 
-2. **Start in production:**
-```bash
-npm run start:prod
-```
+## Current Limits
 
-3. **Environment variables** must be set for production
-4. **Database** should be configured and accessible
-5. **File upload directory** (`/home/assets/chat/uploads`) must be writable
+- 1:1 audio is the sprint target
+- video remains in the model but is not the polished reference flow yet
+- no group calling
+- no recording
+- no production-grade SFU/media-server integration
 
-## 📝 Contributing
+## Key Files
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
+- [`src/app.module.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\app.module.ts)
+- [`src/messages/messages.gateway.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\messages\messages.gateway.ts)
+- [`src/presence/presence.gateway.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\presence\presence.gateway.ts)
+- [`src/calls/calls.service.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\calls\calls.service.ts)
+- [`src/calls/calls.gateway.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\calls\calls.gateway.ts)
+- [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html)

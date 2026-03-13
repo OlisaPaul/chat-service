@@ -1,383 +1,267 @@
-# Chat Service API Documentation
+# API and Socket Contract
 
-## Overview
+This document describes the current public surface for the reference chat and 1:1 audio-calling flow.
 
-The Chat Service provides REST and WebSocket APIs for real-time messaging, user management, and conversation handling. All REST endpoints require JWT authentication.
+Base REST prefix:
 
-## Authentication
-
-All API endpoints require a valid JWT token in the `Authorization` header:
+```text
+/api/v1
 ```
+
+Authentication:
+
+```text
 Authorization: Bearer <jwt-token>
 ```
 
-### JWT Payload Structure
-```json
-{
-  "sub": "appA:user123",
-  "name": "John Doe",
-  "iat": 1638360000,
-  "exp": 1638964800
-}
-```
+## REST Endpoints
 
-## REST API Endpoints
+### Auth
 
-### Authentication
+#### `GET /api/v1/auth/me`
 
-#### GET /auth/me
-Returns the authenticated user's information.
-
-**Response:**
-```json
-{
-  "externalId": "appA:user123",
-  "name": "John Doe"
-}
-```
+Returns the authenticated user record materialized by the JWT strategy.
 
 ### Users
 
-#### GET /users
-Get all users.
+#### `GET /api/v1/users`
 
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "externalId": "appA:user123",
-    "name": "John Doe",
-    "avatarUrl": "https://example.com/avatar.jpg",
-    "createdAt": "2023-01-01T00:00:00.000Z"
-  }
-]
-```
+Paginated list of users except the current user.
 
-#### POST /users
-Create a new user.
+Response shape:
 
-**Request:**
 ```json
 {
-  "externalId": "appA:user123",
-  "name": "John Doe",
-  "avatarUrl": "https://example.com/avatar.jpg"
+  "data": [
+    {
+      "id": 2,
+      "externalId": "appA:bob",
+      "name": "Bob"
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false,
+    "from": 1,
+    "to": 1
+  }
 }
 ```
+
+#### `GET /api/v1/users/me`
+
+Returns the current authenticated user.
+
+#### `GET /api/v1/users/online`
+
+Paginated list of users currently online according to the in-memory presence state.
 
 ### Conversations
 
-#### GET /conversations
-Get all conversations for the authenticated user.
+#### `POST /api/v1/conversations/private/:otherUserId`
 
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "participants": [
-      {
-        "id": 1,
-        "externalId": "appA:user123",
-        "name": "John Doe"
-      },
-      {
-        "id": 2,
-        "externalId": "appA:user456",
-        "name": "Jane Smith"
-      }
-    ],
-    "lastMessage": {
-      "id": 1,
-      "content": "Hello!",
-      "senderName": "John Doe",
-      "sentByMe": false,
-      "status": "delivered",
-      "createdAt": "2023-01-01T00:00:00.000Z"
-    },
-    "createdAt": "2023-01-01T00:00:00.000Z"
-  }
-]
-```
+Creates or returns a direct conversation.
 
-#### POST /conversations/private/:partnerExternalId
-Create a private conversation with another user.
+Important note:
 
-**Parameters:**
-- `partnerExternalId`: External ID of the user to chat with (e.g., "appA:user456")
+- `:otherUserId` now accepts either an internal numeric user ID or an external ID such as `appA:bob`
 
-**Response:**
-```json
-{
-  "id": 1,
-  "participants": [...],
-  "createdAt": "2023-01-01T00:00:00.000Z"
-}
-```
+#### `GET /api/v1/conversations`
 
-#### POST /conversations/group
-Create a group conversation.
-
-**Request:**
-```json
-{
-  "name": "Project Team",
-  "participantIds": ["appA:user123", "appA:user456", "appA:user789"]
-}
-```
+Paginated list of the current user’s conversations.
 
 ### Messages
 
-#### GET /messages/:conversationId
-Get messages for a specific conversation.
+#### `GET /api/v1/messages/:conversationId`
 
-**Parameters:**
-- `conversationId`: ID of the conversation
-- `limit` (optional): Number of messages to return (default: 20)
-- `offset` (optional): Number of messages to skip (default: 0)
+Paginated message history for a conversation.
 
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "content": "Hello!",
-    "imageUrl": null,
-    "senderName": "John Doe",
-    "sentByMe": false,
-    "status": "delivered",
-    "createdAt": "2023-01-01T00:00:00.000Z",
-    "conversationId": 1
-  }
-]
-```
+#### `POST /api/v1/messages/:conversationId`
 
-#### POST /messages/:conversationId
-Send a message to a conversation.
+Send a message by REST.
 
-**Parameters:**
-- `conversationId`: ID of the conversation
+Request:
 
-**Request:**
 ```json
 {
-  "content": "Hello, world!",
-  "imageUrl": null
+  "content": "Hello",
+  "mediaUrl": null,
+  "mediaType": null
 }
 ```
 
-**Response:**
+#### `POST /api/v1/messages/upload`
+
+Upload a file and receive an asset URL plus inferred media type.
+
+Response:
+
 ```json
 {
-  "id": 1,
-  "content": "Hello, world!",
-  "imageUrl": null,
-  "senderName": "John Doe",
-  "sentByMe": true,
-  "status": "sent",
-  "createdAt": "2023-01-01T00:00:00.000Z",
-  "conversationId": 1
+  "url": "/api/v1/assets/chat/uploads/file-12345.mp4",
+  "mediaType": "video"
 }
 ```
 
-#### POST /messages/upload
-Upload an image file.
+### Presence
 
-**Content-Type:** `multipart/form-data`
+#### `GET /api/v1/presence/online-users`
 
-**Form Data:**
-- `file`: Image file (max 5MB, image/* types only)
+Returns online socket/user mappings from the in-memory presence state.
 
-**Response:**
+#### `GET /api/v1/presence/stats`
+
+Returns presence counters and recent event count.
+
+### Calls
+
+#### `GET /api/v1/calls/active`
+
+Returns the current active call for the authenticated user, or `null`.
+
+#### `GET /api/v1/calls/history`
+
+Paginated call history for the authenticated user.
+
+#### `GET /api/v1/calls/rtc-config`
+
+Returns the RTC configuration consumed by the reference browser client.
+
+Example:
+
 ```json
 {
-  "url": "/assets/chat/uploads/file-1234567890.jpg"
+  "stunUrls": ["stun:stun.l.google.com:19302"],
+  "turnUrls": [],
+  "turnUsername": "",
+  "turnPassword": "",
+  "iceTransportPolicy": "all"
 }
 ```
 
-## WebSocket Events
+## Socket Events
 
-### Connection
+The current reference client uses one Socket.IO connection for chat, presence, and calls.
 
-Connect to the WebSocket server with authentication:
-```javascript
-import io from 'socket.io-client';
+### Chat and Presence Events
 
-const socket = io('http://localhost:3001', {
-  auth: { token: 'your-jwt-token' },
-  transports: ['websocket', 'polling']
-});
-```
+Client -> Server:
 
-### Events
+- `join`
+- `send_message`
+- `typing_start`
+- `typing_stop`
+- `mark_as_read`
 
-#### Client → Server
+Server -> Client:
 
-##### send_message
-Send a message to a conversation.
+- `new_message`
+- `user_typing`
+- `messages_read`
+- `user_status_changed`
 
-```javascript
-socket.emit('send_message', {
-  conversationId: 1,
-  content: 'Hello, world!', // optional
-  imageUrl: '/assets/chat/uploads/image.jpg' // optional
-});
-```
+### Call Lifecycle Events
 
-##### mark_as_read
-Mark messages in a conversation as read.
+Client -> Server:
 
-```javascript
-socket.emit('mark_as_read', conversationId);
-```
+- `start_call`
+- `accept_call`
+- `reject_call`
+- `cancel_call`
+- `end_call`
 
-##### typing_start
-Indicate that the user started typing.
+Server -> Client:
 
-```javascript
-socket.emit('typing_start', conversationId);
-```
+- `incoming_call`
+- `call_answered`
+- `call_rejected`
+- `call_cancelled`
+- `call_ended`
+- `call_state_changed`
 
-##### typing_stop
-Indicate that the user stopped typing.
+### WebRTC Signaling Events
 
-```javascript
-socket.emit('typing_stop', conversationId);
-```
+Client -> Server:
 
-#### Server → Client
+- `webrtc_offer`
+- `webrtc_answer`
+- `ice_candidate`
 
-##### new_message
-A new message was sent in a conversation the user is part of.
+Server -> Client:
 
-```javascript
-socket.on('new_message', (message) => {
-  console.log('New message:', message);
-  // message structure same as REST API response
-});
-```
+- `webrtc_offer`
+- `webrtc_answer`
+- `ice_candidate`
 
-##### messages_read
-Messages in a conversation were marked as read.
+Payload shape:
 
-```javascript
-socket.on('messages_read', (data) => {
-  console.log('Messages read in conversation:', data.conversationId);
-});
-```
-
-##### user_typing
-A user in the conversation started/stopped typing.
-
-```javascript
-socket.on('user_typing', (data) => {
-  console.log('User typing:', data);
-  // data: { conversationId, userId, userName, isTyping }
-});
-```
-
-##### conversation_created
-A new conversation was created (when user is a participant).
-
-```javascript
-socket.on('conversation_created', (conversation) => {
-  console.log('New conversation:', conversation);
-});
-```
-
-##### conversation_updated
-A conversation was updated.
-
-```javascript
-socket.on('conversation_updated', (conversation) => {
-  console.log('Conversation updated:', conversation);
-});
-```
-
-## Message Status
-
-Messages have three status levels:
-
-- **sent**: Message was sent but not yet delivered
-- **delivered**: Message was delivered to recipients
-- **read**: Message was read by recipients
-
-## File Upload
-
-Images are uploaded via the `/messages/upload` endpoint and stored in `/home/assets/chat/uploads/`. Files are served statically at `/assets/chat/uploads/filename`.
-
-### Upload Process
-
-1. Client uploads file to `/messages/upload`
-2. Server returns file URL
-3. Client sends message with `imageUrl` field
-4. Image is displayed in chat interface
-
-## Error Handling
-
-All API endpoints return appropriate HTTP status codes:
-
-- `200`: Success
-- `400`: Bad Request
-- `401`: Unauthorized
-- `403`: Forbidden
-- `404`: Not Found
-- `500`: Internal Server Error
-
-Error responses include a message field with details.
-
-## Rate Limiting
-
-WebSocket events are not rate limited, but REST endpoints should implement appropriate rate limiting in production.
-
-## Data Types
-
-### User
-```typescript
+```json
 {
-  id: number;
-  externalId: string;
-  name: string;
-  avatarUrl?: string;
-  createdAt: Date;
+  "callId": 12,
+  "targetUserExternalId": "appA:bob",
+  "sdp": {},
+  "candidate": {}
 }
 ```
 
-### Conversation
-```typescript
+Relayed server payloads include:
+
+```json
 {
-  id: number;
-  participants: User[];
-  lastMessage?: Message;
-  createdAt: Date;
+  "callId": 12,
+  "fromUserExternalId": "appA:alice",
+  "sdp": {},
+  "candidate": {}
 }
 ```
 
-### Message
-```typescript
+## Call Object Shape
+
+The socket call lifecycle and the `calls` REST endpoints use the same high-level response shape:
+
+```json
 {
-  id: number;
-  content?: string;
-  imageUrl?: string;
-  senderName: string;
-  sentByMe: boolean;
-  status: 'sent' | 'delivered' | 'read';
-  createdAt: Date;
-  conversationId: number;
+  "id": 12,
+  "type": "audio",
+  "status": "ringing",
+  "initiatorId": 1,
+  "participants": [
+    {
+      "userId": 1,
+      "externalId": "appA:alice",
+      "name": "Alice",
+      "role": "caller",
+      "status": "accepted"
+    },
+    {
+      "userId": 2,
+      "externalId": "appA:bob",
+      "name": "Bob",
+      "role": "callee",
+      "status": "invited"
+    }
+  ],
+  "startedAt": null,
+  "endedAt": null,
+  "createdAt": "2026-03-12T21:00:00.000Z",
+  "updatedAt": "2026-03-12T21:00:00.000Z"
 }
 ```
 
-## Testing
+## Reference Demo Notes
 
-Use the provided test tokens for development:
+The current reference client is [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html).
 
-```javascript
-const tokens = {
-  alice: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  bob: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  // ... more tokens
-};
-```
+It is intentionally simple:
 
-Open `http://localhost:3001` in multiple browser tabs to test real-time messaging.
+- two demo users
+- direct chat
+- audio-only reference path
+- browser microphone capture
+- call accept/reject/hang-up controls
+
+Video remains represented in the backend model, but audio is the validated path for this sprint.

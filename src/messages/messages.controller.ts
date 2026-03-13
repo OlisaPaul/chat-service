@@ -4,6 +4,7 @@ import {
   Get,
   Body,
   Param,
+  ParseIntPipe,
   UseGuards,
   Request,
   Query,
@@ -29,7 +30,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { MessagesGateway } from './messages.gateway';
 import { SendMessageDto } from './dto/send-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Messages')
 @ApiBearerAuth('JWT-auth')
@@ -105,7 +106,7 @@ export class MessagesController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiBadRequestResponse({ description: 'Invalid conversation or message data' })
   async send(
-    @Param('conversationId') id: number,
+    @Param('conversationId', ParseIntPipe) id: number,
     @Body() body: SendMessageDto,
     @Request() req,
   ) {
@@ -138,7 +139,7 @@ export class MessagesController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async list(
-    @Param('conversationId') id: number,
+    @Param('conversationId', ParseIntPipe) id: number,
     @Request() req,
     @Query() paginationDto: PaginationDto,
   ) {
