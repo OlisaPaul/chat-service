@@ -30,6 +30,7 @@ function createCall(
   initiator: User,
   callee: User,
   status: CallStatus,
+  overrides: Partial<CallSession> = {},
 ): CallSession {
   return {
     id,
@@ -60,6 +61,7 @@ function createCall(
     updatedAt: new Date(),
     startedAt: null,
     endedAt: null,
+    ...overrides,
   } as CallSession;
 }
 
@@ -187,6 +189,24 @@ describe('CallsService', () => {
     );
   });
 
+  it('rejects accepting a call that is already ended', async () => {
+    const call = createCall(22, caller, callee, CallStatus.ENDED);
+    (callParticipantRepository.findOne as jest.Mock).mockResolvedValue({ call });
+
+    await expect(service.acceptCall(call.id, callee)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('rejects rejecting a call that is already accepted', async () => {
+    const call = createCall(23, caller, callee, CallStatus.ACCEPTED);
+    (callParticipantRepository.findOne as jest.Mock).mockResolvedValue({ call });
+
+    await expect(service.rejectCall(call.id, callee)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
   it('ends accepted calls and marks the participant as left', async () => {
     const acceptedCall = createCall(30, caller, callee, CallStatus.ACCEPTED);
     (callParticipantRepository.findOne as jest.Mock)
@@ -202,6 +222,78 @@ describe('CallsService', () => {
     });
     expect(callSessionRepository.update).toHaveBeenCalled();
     expect(result.status).toBe(CallStatus.ENDED);
+  });
+
+  it('marks a ringing call as missed when the callee disconnects', async () => {
+    const ringingCall = createCall(31, caller, callee, CallStatus.RINGING);
+    (callParticipantRepository.findOne as jest.Mock)
+      .mockResolvedValueOnce({ call: ringingCall })
+      .mockResolvedValueOnce({
+        call: createCall(31, caller, callee, CallStatus.MISSED, {
+          endedAt: new Date(),
+        }),
+      });
+
+    const result = await service.handleDisconnect(callee);
+
+    expect(callParticipantRepository.update).toHaveBeenCalledWith(2, {
+      status: CallParticipantStatus.MISSED,
+    });
+    expect(callSessionRepository.update).toHaveBeenCalledWith(31, {
+      status: CallStatus.MISSED,
+      endedAt: expect.any(Date),
+    });
+    expect(result?.status).toBe(CallStatus.MISSED);
+  });
+
+  it('marks an active call as ended when a participant disconnects', async () => {
+    const activeCall = createCall(32, caller, callee, CallStatus.ACCEPTED);
+    (callParticipantRepository.findOne as jest.Mock)
+      .mockResolvedValueOnce({ call: activeCall })
+      .mockResolvedValueOnce({
+        call: createCall(32, caller, callee, CallStatus.ENDED, {
+          endedAt: new Date(),
+        }),
+      });
+
+    const result = await service.handleDisconnect(caller);
+
+    expect(callParticipantRepository.update).toHaveBeenCalledWith(1, {
+      status: CallParticipantStatus.LEFT,
+    });
+    expect(callSessionRepository.update).toHaveBeenCalledWith(32, {
+      status: CallStatus.ENDED,
+      endedAt: expect.any(Date),
+    });
+    expect(result?.status).toBe(CallStatus.ENDED);
+  });
+
+  it('only allows signaling for accepted calls and real participants', async () => {
+    const activeCall = createCall(33, caller, callee, CallStatus.ACCEPTED);
+    (callParticipantRepository.findOne as jest.Mock).mockResolvedValue({
+      call: activeCall,
+    });
+
+    const result = await service.assertCanRelaySignal(
+      activeCall.id,
+      caller,
+      callee.externalId,
+    );
+
+    expect(result.id).toBe(33);
+    expect(result.initiator.externalId).toBe(caller.externalId);
+    expect(result.media.hasVideo).toBe(false);
+  });
+
+  it('blocks signaling for ended calls', async () => {
+    const endedCall = createCall(34, caller, callee, CallStatus.ENDED);
+    (callParticipantRepository.findOne as jest.Mock).mockResolvedValue({
+      call: endedCall,
+    });
+
+    await expect(
+      service.assertCanRelaySignal(endedCall.id, caller, callee.externalId),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('returns RTC configuration for the reference client', async () => {

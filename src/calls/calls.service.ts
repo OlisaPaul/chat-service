@@ -28,6 +28,16 @@ const ACTIVE_CALL_STATUSES = [
   CallStatus.ACCEPTED,
 ];
 
+const ACTIONABLE_RINGING_CALL_STATUSES = [CallStatus.RINGING];
+const SIGNALABLE_CALL_STATUSES = [CallStatus.ACCEPTED];
+const TERMINAL_CALL_STATUSES = [
+  CallStatus.REJECTED,
+  CallStatus.CANCELLED,
+  CallStatus.ENDED,
+  CallStatus.MISSED,
+  CallStatus.FAILED,
+];
+
 @Injectable()
 export class CallsService {
   constructor(
@@ -138,9 +148,7 @@ export class CallsService {
 
   async acceptCall(callId: number, user: User) {
     const call = await this.getCallById(callId, user);
-    if (call.status !== CallStatus.RINGING) {
-      throw new BadRequestException('Call is not in a ringable state');
-    }
+    this.assertActionableRingingCall(call);
 
     const participant = call.participants.find((entry) => entry.user.id === user.id);
     if (!participant || participant.role !== CallParticipantRole.CALLEE) {
@@ -163,9 +171,7 @@ export class CallsService {
 
   async rejectCall(callId: number, user: User) {
     const call = await this.getCallById(callId, user);
-    if (call.status !== CallStatus.RINGING) {
-      throw new BadRequestException('Call is not in a rejectable state');
-    }
+    this.assertActionableRingingCall(call);
 
     const participant = call.participants.find((entry) => entry.user.id === user.id);
     if (!participant || participant.role !== CallParticipantRole.CALLEE) {
@@ -192,9 +198,7 @@ export class CallsService {
       throw new ForbiddenException('Only the initiator can cancel a call');
     }
 
-    if (![CallStatus.INITIATED, CallStatus.RINGING].includes(call.status)) {
-      throw new BadRequestException('Call cannot be cancelled');
-    }
+    this.assertActionableRingingCall(call);
 
     await this.callSessionRepository.update(callId, {
       status: CallStatus.CANCELLED,
@@ -207,7 +211,7 @@ export class CallsService {
   async endCall(callId: number, user: User) {
     const call = await this.getCallById(callId, user);
     if (call.status !== CallStatus.ACCEPTED) {
-      throw new BadRequestException('Only active calls can be ended');
+      throw this.buildNoLongerActionableError(call, 'Only active calls can be ended');
     }
 
     const participant = call.participants.find((entry) => entry.user.id === user.id);
@@ -279,6 +283,39 @@ export class CallsService {
     await this.getCallById(callId, user);
   }
 
+  async assertCanRelaySignal(
+    callId: number,
+    user: User,
+    targetUserExternalId: string,
+  ) {
+    const call = await this.getCallById(callId, user);
+
+    if (!SIGNALABLE_CALL_STATUSES.includes(call.status)) {
+      throw this.buildNoLongerActionableError(
+        call,
+        'WebRTC signaling is only allowed for accepted calls',
+      );
+    }
+
+    const sender = call.participants.find((entry) => entry.user.id === user.id);
+    if (!sender) {
+      throw new ForbiddenException('Only call participants can relay signaling data');
+    }
+
+    const target = call.participants.find(
+      (entry) => entry.user.externalId === targetUserExternalId,
+    );
+    if (!target) {
+      throw new ForbiddenException('Signal target is not a participant in this call');
+    }
+
+    if (target.user.id === user.id) {
+      throw new BadRequestException('Cannot relay signaling data to the same participant');
+    }
+
+    return new CallResponseDto(call, user);
+  }
+
   async getRtcConfiguration() {
     this.assertCallsEnabled();
 
@@ -296,6 +333,25 @@ export class CallsService {
     if (!this.configService.get<boolean>('features.calls')) {
       throw new ServiceUnavailableException('Calling is disabled');
     }
+  }
+
+  private assertActionableRingingCall(call: CallSession) {
+    if (!ACTIONABLE_RINGING_CALL_STATUSES.includes(call.status)) {
+      throw this.buildNoLongerActionableError(
+        call,
+        'Call is not in a ringable state',
+      );
+    }
+  }
+
+  private buildNoLongerActionableError(call: CallSession, fallbackMessage: string) {
+    if (TERMINAL_CALL_STATUSES.includes(call.status)) {
+      return new BadRequestException(
+        `Call is no longer actionable because it is ${call.status}`,
+      );
+    }
+
+    return new BadRequestException(fallbackMessage);
   }
 
   private async findMostRecentActiveCallForUser(userId: number) {

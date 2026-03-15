@@ -1,6 +1,6 @@
 # API and Socket Contract
 
-This document describes the current public surface for the reference chat and 1:1 audio-calling flow.
+This document describes the current public surface for the reference chat and 1:1 calling flow. The reference client now supports both audio and video while keeping the same call contract and signaling model.
 
 Base REST prefix:
 
@@ -197,7 +197,7 @@ Server -> Client:
 - `webrtc_answer`
 - `ice_candidate`
 
-Payload shape:
+Client payload shape:
 
 ```json
 {
@@ -219,6 +219,8 @@ Relayed server payloads include:
 }
 ```
 
+WebRTC signaling is only valid for accepted calls and authenticated call participants. Stale or terminal sessions should not continue exchanging signaling messages.
+
 ## Call Object Shape
 
 The socket call lifecycle and the `calls` REST endpoints use the same high-level response shape:
@@ -229,20 +231,41 @@ The socket call lifecycle and the `calls` REST endpoints use the same high-level
   "type": "audio",
   "status": "ringing",
   "initiatorId": 1,
+  "initiator": {
+    "userId": 1,
+    "externalId": "appA:alice",
+    "name": "Alice"
+  },
+  "media": {
+    "hasAudio": true,
+    "hasVideo": false
+  },
   "participants": [
     {
       "userId": 1,
       "externalId": "appA:alice",
       "name": "Alice",
       "role": "caller",
-      "status": "accepted"
+      "status": "accepted",
+      "mediaIntent": {
+        "sendAudio": true,
+        "sendVideo": false,
+        "receiveAudio": true,
+        "receiveVideo": false
+      }
     },
     {
       "userId": 2,
       "externalId": "appA:bob",
       "name": "Bob",
       "role": "callee",
-      "status": "invited"
+      "status": "invited",
+      "mediaIntent": {
+        "sendAudio": true,
+        "sendVideo": false,
+        "receiveAudio": true,
+        "receiveVideo": false
+      }
     }
   ],
   "startedAt": null,
@@ -259,9 +282,17 @@ The current reference client is [`frontend/index.html`](C:\Users\DEEPIJA\Downloa
 It is intentionally simple:
 
 - two demo users
-- direct chat
-- audio-only reference path
-- browser microphone capture
+- direct chat with explicit target selection
+- separate audio and video start actions
+- browser microphone capture for audio calls
+- browser microphone and camera capture for video calls
 - call accept/reject/hang-up controls
+- active call re-sync on reconnect using `GET /api/v1/calls/active`
 
-Video remains represented in the backend model, but audio is the validated path for this sprint.
+## Troubleshooting Notes
+
+- If the demo receives a `401`, check the demo JWTs in [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) and the backend `JWT_SHARED_SECRET`.
+- If call state looks stale after a browser reconnect, the reference client rechecks `GET /api/v1/calls/active`; `null` means the server no longer considers the call active.
+- If a video call fails before it starts, check browser camera and microphone permissions.
+- The current reference client does not silently degrade a failed video call into audio-only; it reports the device error instead.
+- If a database already contains schema changes from `synchronize`, migrations should still be treated as the supported schema history going forward.

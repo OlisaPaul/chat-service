@@ -21,6 +21,15 @@ describe('CallsGateway', () => {
     type: CallType.AUDIO,
     status: CallStatus.RINGING,
     initiatorId: 1,
+    initiator: {
+      userId: 1,
+      externalId: 'appA:alice',
+      name: 'Alice',
+    },
+    media: {
+      hasAudio: true,
+      hasVideo: false,
+    },
     participants: [
       {
         userId: 1,
@@ -28,6 +37,12 @@ describe('CallsGateway', () => {
         name: 'Alice',
         role: 'caller',
         status: 'accepted',
+        mediaIntent: {
+          sendAudio: true,
+          sendVideo: false,
+          receiveAudio: true,
+          receiveVideo: false,
+        },
       },
       {
         userId: 2,
@@ -35,6 +50,12 @@ describe('CallsGateway', () => {
         name: 'Bob',
         role: 'callee',
         status: 'invited',
+        mediaIntent: {
+          sendAudio: true,
+          sendVideo: false,
+          receiveAudio: true,
+          receiveVideo: false,
+        },
       },
     ],
     createdAt: new Date(),
@@ -50,7 +71,7 @@ describe('CallsGateway', () => {
       rejectCall: jest.fn(),
       cancelCall: jest.fn(),
       endCall: jest.fn(),
-      assertParticipant: jest.fn(),
+      assertCanRelaySignal: jest.fn(),
       handleDisconnect: jest.fn(),
     } as unknown as jest.Mocked<CallsService>;
 
@@ -100,17 +121,25 @@ describe('CallsGateway', () => {
     );
 
     expect(callsService.createCall).toHaveBeenCalledWith(alice, 2, CallType.AUDIO);
+    expect(server.to).toHaveBeenCalledWith('user:appA:alice');
+    expect(server.to).toHaveBeenCalledWith('user:appA:bob');
     expect(server.emit).toHaveBeenCalledWith('incoming_call', callDto);
     expect(result).toBe(callDto);
   });
 
   it('relays answers only for valid participants', async () => {
+    callsService.assertCanRelaySignal.mockResolvedValue(callDto as any);
+
     await gateway.handleAnswer(
       { callId: 1, targetUserExternalId: 'appA:bob', sdp: { type: 'answer' } },
       socket,
     );
 
-    expect(callsService.assertParticipant).toHaveBeenCalledWith(1, alice);
+    expect(callsService.assertCanRelaySignal).toHaveBeenCalledWith(
+      1,
+      alice,
+      'appA:bob',
+    );
     expect(server.emit).toHaveBeenCalledWith('webrtc_answer', {
       callId: 1,
       fromUserExternalId: 'appA:alice',

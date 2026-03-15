@@ -118,7 +118,11 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() socket: Socket,
   ) {
     const user = socket.data.user as User;
-    await this.callsService.assertParticipant(payload.callId, user);
+    await this.callsService.assertCanRelaySignal(
+      payload.callId,
+      user,
+      payload.targetUserExternalId,
+    );
     this.server.to(`user:${payload.targetUserExternalId}`).emit('webrtc_offer', {
       callId: payload.callId,
       fromUserExternalId: user.externalId,
@@ -133,7 +137,11 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() socket: Socket,
   ) {
     const user = socket.data.user as User;
-    await this.callsService.assertParticipant(payload.callId, user);
+    await this.callsService.assertCanRelaySignal(
+      payload.callId,
+      user,
+      payload.targetUserExternalId,
+    );
     this.server.to(`user:${payload.targetUserExternalId}`).emit('webrtc_answer', {
       callId: payload.callId,
       fromUserExternalId: user.externalId,
@@ -152,7 +160,11 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() socket: Socket,
   ) {
     const user = socket.data.user as User;
-    await this.callsService.assertParticipant(payload.callId, user);
+    await this.callsService.assertCanRelaySignal(
+      payload.callId,
+      user,
+      payload.targetUserExternalId,
+    );
     this.server.to(`user:${payload.targetUserExternalId}`).emit('ice_candidate', {
       callId: payload.callId,
       fromUserExternalId: user.externalId,
@@ -161,7 +173,6 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private emitCallUpdate(eventName: string, call: CallResponseDto) {
-    this.server.to(`call:${call.id}`).emit(eventName, call);
     this.emitCallToParticipants(eventName, call);
   }
 
