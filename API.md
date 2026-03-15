@@ -1,6 +1,6 @@
 # API and Socket Contract
 
-This document describes the current public surface for the reference chat and 1:1 calling flow. The reference client now supports both audio and video while keeping the same call contract and signaling model.
+This document describes the current supported platform surface for the self-hostable chat and 1:1 calling stack. The reference client is one consumer of this contract, not the definition of the contract itself.
 
 Base REST prefix:
 
@@ -28,30 +28,6 @@ Returns the authenticated user record materialized by the JWT strategy.
 
 Paginated list of users except the current user.
 
-Response shape:
-
-```json
-{
-  "data": [
-    {
-      "id": 2,
-      "externalId": "appA:bob",
-      "name": "Bob"
-    }
-  ],
-  "meta": {
-    "total": 1,
-    "page": 1,
-    "limit": 10,
-    "totalPages": 1,
-    "hasNext": false,
-    "hasPrev": false,
-    "from": 1,
-    "to": 1
-  }
-}
-```
-
 #### `GET /api/v1/users/me`
 
 Returns the current authenticated user.
@@ -66,9 +42,10 @@ Paginated list of users currently online according to the in-memory presence sta
 
 Creates or returns a direct conversation.
 
-Important note:
+Notes:
 
-- `:otherUserId` now accepts either an internal numeric user ID or an external ID such as `appA:bob`
+- `:otherUserId` accepts either an internal numeric user ID or an external ID such as `appA:bob`
+- this is the reference-client entry point for direct chat/call sessions
 
 #### `GET /api/v1/conversations`
 
@@ -84,7 +61,7 @@ Paginated message history for a conversation.
 
 Send a message by REST.
 
-Request:
+Example request:
 
 ```json
 {
@@ -98,7 +75,7 @@ Request:
 
 Upload a file and receive an asset URL plus inferred media type.
 
-Response:
+Example response:
 
 ```json
 {
@@ -129,7 +106,7 @@ Paginated call history for the authenticated user.
 
 #### `GET /api/v1/calls/rtc-config`
 
-Returns the RTC configuration consumed by the reference browser client.
+Returns the RTC configuration consumed by WebRTC clients.
 
 Example:
 
@@ -145,7 +122,17 @@ Example:
 
 ## Socket Events
 
-The current reference client uses one Socket.IO connection for chat, presence, and calls.
+The current platform uses one Socket.IO connection for chat, presence, and calling.
+
+### Connection/Auth
+
+The reference client sends the JWT in the socket auth payload:
+
+```json
+{
+  "token": "<jwt-token>"
+}
+```
 
 ### Chat and Presence Events
 
@@ -163,6 +150,11 @@ Server -> Client:
 - `user_typing`
 - `messages_read`
 - `user_status_changed`
+
+Important behavior:
+
+- realtime messages are broadcast to the conversation room
+- the reference client joins the active conversation room after loading or creating the conversation
 
 ### Call Lifecycle Events
 
@@ -182,6 +174,20 @@ Server -> Client:
 - `call_cancelled`
 - `call_ended`
 - `call_state_changed`
+
+Supported call types:
+
+- `audio`
+- `video`
+
+Call-state events return the full current call/session object used by the reference client, including:
+
+- `id`
+- `status`
+- `type`
+- `initiator`
+- `participants`
+- `media`
 
 ### WebRTC Signaling Events
 
@@ -219,80 +225,24 @@ Relayed server payloads include:
 }
 ```
 
-WebRTC signaling is only valid for accepted calls and authenticated call participants. Stale or terminal sessions should not continue exchanging signaling messages.
+Important behavior:
 
-## Call Object Shape
+- signaling is only relayed for valid participants in valid call states
+- the server is the source of truth for call lifecycle state
+- browser media acquisition stays on the client side
 
-The socket call lifecycle and the `calls` REST endpoints use the same high-level response shape:
+## Reference Client Notes
 
-```json
-{
-  "id": 12,
-  "type": "audio",
-  "status": "ringing",
-  "initiatorId": 1,
-  "initiator": {
-    "userId": 1,
-    "externalId": "appA:alice",
-    "name": "Alice"
-  },
-  "media": {
-    "hasAudio": true,
-    "hasVideo": false
-  },
-  "participants": [
-    {
-      "userId": 1,
-      "externalId": "appA:alice",
-      "name": "Alice",
-      "role": "caller",
-      "status": "accepted",
-      "mediaIntent": {
-        "sendAudio": true,
-        "sendVideo": false,
-        "receiveAudio": true,
-        "receiveVideo": false
-      }
-    },
-    {
-      "userId": 2,
-      "externalId": "appA:bob",
-      "name": "Bob",
-      "role": "callee",
-      "status": "invited",
-      "mediaIntent": {
-        "sendAudio": true,
-        "sendVideo": false,
-        "receiveAudio": true,
-        "receiveVideo": false
-      }
-    }
-  ],
-  "startedAt": null,
-  "endedAt": null,
-  "createdAt": "2026-03-12T21:00:00.000Z",
-  "updatedAt": "2026-03-12T21:00:00.000Z"
-}
+The reference client is available at:
+
+```text
+/frontend/index.html
 ```
 
-## Reference Demo Notes
+It is intended for:
 
-The current reference client is [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html).
+- onboarding
+- manual validation
+- API/socket contract smoke testing
 
-It is intentionally simple:
-
-- two demo users
-- direct chat with explicit target selection
-- separate audio and video start actions
-- browser microphone capture for audio calls
-- browser microphone and camera capture for video calls
-- call accept/reject/hang-up controls
-- active call re-sync on reconnect using `GET /api/v1/calls/active`
-
-## Troubleshooting Notes
-
-- If the demo receives a `401`, check the demo JWTs in [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) and the backend `JWT_SHARED_SECRET`.
-- If call state looks stale after a browser reconnect, the reference client rechecks `GET /api/v1/calls/active`; `null` means the server no longer considers the call active.
-- If a video call fails before it starts, check browser camera and microphone permissions.
-- The current reference client does not silently degrade a failed video call into audio-only; it reports the device error instead.
-- If a database already contains schema changes from `synchronize`, migrations should still be treated as the supported schema history going forward.
+It is not intended to define production UX or product policy.

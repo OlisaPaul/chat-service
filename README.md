@@ -1,24 +1,25 @@
 # Chat Service
 
-A self-hostable NestJS communication backend with:
+Self-hostable NestJS communication backend with:
 
-- real-time chat
+- realtime chat
 - presence tracking
 - file uploads
-- a reference 1:1 audio/video calling flow using Socket.IO signaling plus browser WebRTC
+- 1:1 audio calling
+- 1:1 video calling
+- a browser-based reference client served by the backend
 
-The backend is the main product surface. The included [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) is the reference demo for this sprint, not a polished production client.
+The backend is the main product surface. The in-repo UI at [`/frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) is the supported reference client for validation and onboarding, not a polished production app.
 
-## What Works Now
+## What Works Today
 
 - JWT-authenticated REST API under `/api/v1`
-- Socket.IO messaging and presence events
+- Socket.IO chat, presence, and call signaling
 - direct/private conversations
-- message history, typing indicators, and read state
-- upload handling for images, video, audio, and supported documents
+- paginated message history and read state
+- uploads served from `/api/v1/assets/...`
 - persisted call sessions and call history
-- 1:1 audio/video call signaling with WebRTC offer/answer/ICE relay
-- reference browser demo for chat plus audio/video calling
+- 1:1 audio/video calling through browser WebRTC signaling
 
 ## Stack
 
@@ -27,9 +28,9 @@ The backend is the main product surface. The included [`frontend/index.html`](C:
 - MySQL
 - Socket.IO
 - Multer
-- Browser WebRTC for audio calling
+- Browser WebRTC for audio/video media
 
-## Local Setup
+## Quick Start: Local
 
 1. Install dependencies:
 
@@ -37,183 +38,135 @@ The backend is the main product surface. The included [`frontend/index.html`](C:
 npm install
 ```
 
-2. Create `.env` from [`.env.example`](C:\Users\DEEPIJA\Downloads\chat-service\.env.example):
+2. Create your local environment file:
 
 ```bash
 copy .env.example .env
 ```
 
-3. Create the MySQL database named in `MYSQL_DB`.
+3. Keep the default `JWT_SHARED_SECRET` value if you want the built-in Alice/Bob demo users to work immediately.
 
-4. Start the backend:
+4. Create the MySQL database named in `MYSQL_DB`.
 
-```bash
-npm run start:dev
-```
-
-5. Open the reference demo:
-
-```text
-http://localhost:3001/frontend/index.html
-```
-
-If static frontend hosting is not wired in your environment, open the file directly from the repo.
-
-## Temporary Remote Testing Tunnel
-
-If you want to open the reference demo from another device on the same temporary backend, use:
-
-```bash
-npm run tunnel:dev
-```
-
-What it does:
-
-- starts or reuses the backend on port `3001`
-- serves [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) through the Nest app at `/frontend/index.html`
-- opens one HTTPS ngrok tunnel to the backend
-- prints a final `Remote test URL` you can open on another device
-
-Before running it, set `NGROK_AUTHTOKEN` in your shell or `.env`.
-
-Example PowerShell session:
-
-```powershell
-$env:NGROK_AUTHTOKEN="your-ngrok-token"
-npm run tunnel:dev
-```
-
-Notes:
-
-- keep the terminal running while testing
-- press `Ctrl+C` to close the tunnels and local servers
-- open the printed `Remote test URL` on the other device
-
-## Environment Notes
-
-Important variables:
-
-- `PORT`
-- `API_PREFIX`
-- `MYSQL_HOST`
-- `MYSQL_PORT`
-- `MYSQL_USER`
-- `MYSQL_PASS`
-- `MYSQL_DB`
-- `JWT_SHARED_SECRET`
-- `FEATURE_CALLS`
-- `UPLOAD_PATH`
-- `ASSETS_PATH`
-- `RTC_STUN_URLS`
-- `RTC_TURN_URLS`
-- `RTC_TURN_USERNAME`
-- `RTC_TURN_PASSWORD`
-- `RTC_ICE_TRANSPORT_POLICY`
-
-For simple local testing, STUN is usually enough when both browser tabs run on the same machine or local network. For broader real-world connectivity, provide TURN settings.
-
-## Reference Call Demo
-
-Recommended local flow:
-
-1. Start the backend.
-2. Open the reference demo in two browser tabs.
-3. Select `Alice` in one tab and `Bob` in the other.
-4. Allow microphone access in both tabs.
-5. Send a chat message to confirm the conversation is active.
-6. Click `Start audio call` or `Start video call` in one tab.
-7. Click `Accept` in the other tab.
-8. Confirm audio connects and, for video calls, confirm both local and remote video render.
-9. Click `Hang up` to end the call.
-
-Secondary manual checks:
-
-- reject an incoming call
-- cancel a ringing outgoing call
-- close one tab during a ringing or active call and confirm the remaining tab receives a terminal state
-- deny camera access for a video call and confirm the client shows a clear error instead of silently falling back
-- disable calling with `FEATURE_CALLS=false`
-- verify chat still works before and after a call
-
-## Self-Host Basics
-
-Use this sequence for a fresh environment:
-
-1. Create the MySQL database named in `MYSQL_DB`.
-2. Copy [`.env.example`](C:\Users\DEEPIJA\Downloads\chat-service\.env.example) to `.env` and set:
-   - `MYSQL_*`
-   - `JWT_SHARED_SECRET`
-   - `UPLOAD_PATH`
-   - `ASSETS_PATH`
-3. Run migrations:
+5. Run migrations:
 
 ```bash
 npm run migration:run
 ```
 
-4. Start the backend:
+6. Start the backend:
 
 ```bash
 npm run start:dev
 ```
 
-`DB_SYNCHRONIZE=true` can still work in development, but migrations are the intended schema artifact for self-hosted installs.
+7. Open the reference client:
 
-## Schema and Migrations
-
-The calling feature adds:
-
-- `call_sessions`
-- `call_participants`
-
-Migration artifact:
-
-- [`src/migrations/1764861000000-CreateCallTables.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\migrations\1764861000000-CreateCallTables.ts)
-
-The app still supports runtime schema sync in config, but the calling schema is now explicitly represented in migrations and should be treated as part of the supported platform model.
-
-## Testing
-
-Run the current automated suite:
-
-```bash
-npm test -- --runInBand
+```text
+http://localhost:3001/frontend/index.html
 ```
 
-Build verification:
+## Quick Start: Docker
+
+1. Create your local environment file:
 
 ```bash
-npm run build
+copy .env.example .env
 ```
+
+2. Start the app and MySQL:
+
+```bash
+npm run docker:up
+```
+
+3. Open the reference client:
+
+```text
+http://localhost:3001/frontend/index.html
+```
+
+Docker notes:
+
+- the app runs migrations automatically on container startup
+- uploaded files are stored in `./storage/assets`
+- MySQL data is stored in the named volume `mysql_data`
+
+## Reference Client Flow
+
+The supported validation path is:
+
+1. Open the reference client in two tabs.
+2. Select `Alice` in one tab and `Bob` in the other.
+3. Send a message to confirm realtime chat works.
+4. Start an audio or video call.
+5. Accept in the other tab.
+6. Confirm chat, call, and hang-up behavior.
+
+If you change `JWT_SHARED_SECRET`, the built-in Alice/Bob tokens in [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) will no longer authenticate.
+
+## Configuration
+
+Primary environment groups in [`.env.example`](C:\Users\DEEPIJA\Downloads\chat-service\.env.example):
+
+- app
+- database
+- auth
+- uploads and assets
+- feature flags
+- RTC
+- Socket.IO admin UI
+- dev tooling
+
+Important defaults:
+
+- `DB_SYNCHRONIZE=false`
+- `UPLOAD_PATH=storage/assets/chat/uploads`
+- `ASSETS_PATH=storage/assets`
+- `SOCKET_ADMIN_ENABLED=false`
+
+Migrations are the supported schema path for self-host installs. Runtime schema sync is not the recommended default.
+
+## Dev Tunnel
+
+For temporary remote-device testing, you can expose the backend and reference client through ngrok:
+
+```bash
+npm run tunnel:dev
+```
+
+Requirements:
+
+- set `NGROK_AUTHTOKEN` in `.env` or your shell
+- keep the terminal running while testing
+
+The command prints a `Remote test URL` that points to `/frontend/index.html` through the ngrok tunnel.
+
+## Scripts
+
+- `npm run start:dev`
+- `npm run build`
+- `npm test -- --runInBand`
+- `npm run migration:run`
+- `npm run docker:up`
+- `npm run docker:down`
+- `npm run tunnel:dev`
+
+## Project Docs
+
+- [`API.md`](C:\Users\DEEPIJA\Downloads\chat-service\API.md): current REST and socket contract
+- [`Understanding This Codebase.md`](C:\Users\DEEPIJA\Downloads\chat-service\Understanding%20This%20Codebase.md): architecture and onboarding guide
+- [`CONTRIBUTING.md`](C:\Users\DEEPIJA\Downloads\chat-service\CONTRIBUTING.md): contributor workflow
+- [`DEPLOYMENT.md`](C:\Users\DEEPIJA\Downloads\chat-service\DEPLOYMENT.md): self-host guidance
 
 ## Current Limits
 
-- 1:1 audio and video are supported in the reference client
-- the video UX is intentionally minimal and focused on proving the media path
-- no group calling
+- 1:1 calls only
 - no recording
-- no production-grade SFU/media-server integration
+- no group calling
+- no SFU/media-server integration
+- reference client is intentionally minimal
 
-## Troubleshooting
+## License
 
-- `401 Unauthorized` when selecting Alice or Bob:
-  - confirm `JWT_SHARED_SECRET` matches the secret used for the demo tokens in [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html)
-- Port mismatch:
-  - the reference client expects the backend on `http://localhost:3001`
-- Migration drift:
-  - older databases may already contain changes applied through `synchronize`
-  - use migrations as the schema source of truth for self-hosted installs
-- Unexpected demo target:
-  - use the target dropdown to explicitly choose who to message or call
-- Camera or microphone failure:
-  - video calls require both camera and microphone access
-  - audio calls require microphone access
-
-## Key Files
-
-- [`src/app.module.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\app.module.ts)
-- [`src/messages/messages.gateway.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\messages\messages.gateway.ts)
-- [`src/presence/presence.gateway.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\presence\presence.gateway.ts)
-- [`src/calls/calls.service.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\calls\calls.service.ts)
-- [`src/calls/calls.gateway.ts`](C:\Users\DEEPIJA\Downloads\chat-service\src\calls\calls.gateway.ts)
-- [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html)
+MIT. See [`LICENSE`](C:\Users\DEEPIJA\Downloads\chat-service\LICENSE).

@@ -1,10 +1,10 @@
 {
   "name": "chat-service",
   "version": "0.0.1",
-  "description": "",
+  "description": "Self-hostable NestJS chat and 1:1 calling starter with REST, Socket.IO, and WebRTC signaling.",
   "author": "",
-  "private": true,
-  "license": "UNLICENSED",
+  "private": false,
+  "license": "MIT",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -20,10 +20,14 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "sync:postman": "node scripts/sync-postman.js",
     "migration:create": "typeorm migration:create",
+    "migration:run:dist": "typeorm migration:run -d dist/src/config/data-source.js",
     "migration:run": "npm run build && typeorm migration:run -d dist/src/config/data-source.js",
     "migration:revert": "npm run build && typeorm migration:revert -d dist/src/config/data-source.js",
     "migration:show": "npm run build && typeorm migration:show -d dist/src/config/data-source.js",
-    "tunnel:dev": "node scripts/tunnel-dev.js"
+    "tunnel:dev": "node scripts/tunnel-dev.js",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f app"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
