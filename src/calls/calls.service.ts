@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -40,6 +41,8 @@ const TERMINAL_CALL_STATUSES = [
 
 @Injectable()
 export class CallsService {
+  private readonly logger = new Logger(CallsService.name);
+
   constructor(
     @InjectRepository(CallSession)
     private readonly callSessionRepository: Repository<CallSession>,
@@ -98,6 +101,9 @@ export class CallsService {
     ]);
 
     const call = await this.getCallById(savedSession.id, initiator);
+    this.logger.log(
+      `Call ${call.id} created by ${initiator.externalId} for user ${targetUser.externalId} (${type})`,
+    );
     return new CallResponseDto(call, initiator);
   }
 
@@ -166,6 +172,7 @@ export class CallsService {
       startedAt: new Date(),
     });
 
+    this.logger.log(`Call ${callId} accepted by ${user.externalId}`);
     return new CallResponseDto(await this.getCallById(callId, user), user);
   }
 
@@ -189,6 +196,7 @@ export class CallsService {
       endedAt: new Date(),
     });
 
+    this.logger.log(`Call ${callId} rejected by ${user.externalId}`);
     return new CallResponseDto(await this.getCallById(callId, user), user);
   }
 
@@ -205,6 +213,7 @@ export class CallsService {
       endedAt: new Date(),
     });
 
+    this.logger.log(`Call ${callId} cancelled by ${user.externalId}`);
     return new CallResponseDto(await this.getCallById(callId, user), user);
   }
 
@@ -227,6 +236,7 @@ export class CallsService {
       endedAt: new Date(),
     });
 
+    this.logger.log(`Call ${callId} ended by ${user.externalId}`);
     return new CallResponseDto(await this.getCallById(callId, user), user);
   }
 
@@ -261,6 +271,9 @@ export class CallsService {
         endedAt: new Date(),
       });
 
+      this.logger.log(
+        `Call ${activeCall.id} updated to ${nextStatus} after disconnect from ${user.externalId}`,
+      );
       return new CallResponseDto(await this.getCallById(activeCall.id, user), user);
     }
 
@@ -273,6 +286,9 @@ export class CallsService {
         endedAt: new Date(),
       });
 
+      this.logger.log(
+        `Active call ${activeCall.id} ended after disconnect from ${user.externalId}`,
+      );
       return new CallResponseDto(await this.getCallById(activeCall.id, user), user);
     }
 

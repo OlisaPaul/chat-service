@@ -6,15 +6,18 @@ import {
   ConnectedSocket,
   OnGatewayConnection,
 } from '@nestjs/websockets';
+import { ForbiddenException, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { User } from '../entities/user.entity';
 import { AuthIdentityService } from '../auth/auth-identity.service';
 import { MessagesService } from './messages.service';
 import { ConversationsService } from '../conversations/conversations.service';
+import { socketGatewayOptions } from '../common/socket-gateway-options';
 
-@WebSocketGateway({ cors: { origin: '*' } })
+@WebSocketGateway(socketGatewayOptions)
 export class MessagesGateway implements OnGatewayConnection {
   @WebSocketServer() server: Server;
+  private readonly logger = new Logger(MessagesGateway.name);
 
   constructor(
     private readonly messagesService: MessagesService,
@@ -34,6 +37,7 @@ export class MessagesGateway implements OnGatewayConnection {
         socket.join(`conversation:${conversation.id}`);
       }
     } catch (error) {
+      this.logger.warn(`Socket authentication failed for ${socket.id}`);
       socket.disconnect();
     }
   }
@@ -43,6 +47,15 @@ export class MessagesGateway implements OnGatewayConnection {
     @MessageBody() conversationId: number,
     @ConnectedSocket() socket: Socket,
   ) {
+    const user = socket.data.user as User;
+    const conversation = await this.conversationsService.getConversationById(
+      conversationId,
+      user,
+    );
+    if (!conversation) {
+      throw new ForbiddenException('User cannot join this conversation room');
+    }
+
     socket.join(`conversation:${conversationId}`);
   }
 

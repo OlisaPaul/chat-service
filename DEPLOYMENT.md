@@ -86,6 +86,14 @@ For broader connectivity:
 
 The backend handles signaling and call lifecycle state. Media transport stays in browser WebRTC.
 
+## Production Hardening Notes
+
+- `SOCKET_ADMIN_ENABLED=false` is the recommended default outside local debugging.
+- `CORS_ORIGINS` should be set explicitly for any production-minded deployment.
+- Socket room joins are now validated against conversation membership.
+- Presence is tracked per socket in memory and only emits offline when a user's last socket disconnects.
+- Presence and active call state are still single-instance assumptions today; multi-instance scaling is a later phase.
+
 ## Reference Client
 
 The supported validation UI is:

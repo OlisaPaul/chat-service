@@ -5,22 +5,20 @@ import {
   OnGatewayDisconnect,
   OnGatewayInit,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ConfigService } from '@nestjs/config';
 import { instrument } from '@socket.io/admin-ui';
 import { AuthIdentityService } from '../auth/auth-identity.service';
 import { PresenceStateService } from './presence-state.service';
+import { socketGatewayOptions } from '../common/socket-gateway-options';
 
-@WebSocketGateway({
-  cors: {
-    origin: ['*', 'https://admin.socket.io'],
-    credentials: true,
-  },
-})
+@WebSocketGateway(socketGatewayOptions)
 export class PresenceGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
   @WebSocketServer() server: Server;
+  private readonly logger = new Logger(PresenceGateway.name);
 
   constructor(
     private readonly authIdentityService: AuthIdentityService,
@@ -58,25 +56,32 @@ export class PresenceGateway
       const { user } = await this.authIdentityService.authenticateSocket(socket);
 
       socket.join(`user:${user.externalId}`);
-      this.presenceStateService.markOnline(socket.id, user.externalId, user.name);
+      const result = this.presenceStateService.markOnline(
+        socket.id,
+        user.externalId,
+        user.name,
+      );
 
-      this.server.emit('user_status_changed', {
-        userId: user.externalId,
-        status: 'online',
-      });
+      if (result.becameOnline) {
+        this.server.emit('user_status_changed', {
+          userId: user.externalId,
+          status: 'online',
+        });
+      }
     } catch (error) {
+      this.logger.warn(`Socket authentication failed for ${socket.id}`);
       socket.disconnect();
     }
   }
 
   handleDisconnect(socket: Socket) {
-    const userId = this.presenceStateService.markOffline(socket.id);
-    if (!userId) {
+    const result = this.presenceStateService.markOffline(socket.id);
+    if (!result || !result.becameOffline) {
       return;
     }
 
     this.server.emit('user_status_changed', {
-      userId,
+      userId: result.externalId,
       status: 'offline',
     });
   }

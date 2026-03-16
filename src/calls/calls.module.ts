@@ -7,10 +7,12 @@ import { CallsController } from './calls.controller';
 import { CallsGateway } from './calls.gateway';
 import { CallSession } from './call-session.entity';
 import { CallsService } from './calls.service';
+import { PresenceModule } from '../presence/presence.module';
 
 @Module({
   imports: [
     AuthModule,
+    PresenceModule,
     TypeOrmModule.forFeature([CallSession, CallParticipant, User]),
   ],
   providers: [CallsService, CallsGateway],

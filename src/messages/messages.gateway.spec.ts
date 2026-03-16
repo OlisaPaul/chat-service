@@ -2,6 +2,7 @@ import { MessagesGateway } from './messages.gateway';
 import { MessagesService } from './messages.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { AuthIdentityService } from '../auth/auth-identity.service';
+import { ForbiddenException } from '@nestjs/common';
 
 describe('MessagesGateway', () => {
   let gateway: MessagesGateway;
@@ -24,6 +25,7 @@ describe('MessagesGateway', () => {
     } as unknown as jest.Mocked<MessagesService>;
     conversationsService = {
       getUserConversations: jest.fn(),
+      getConversationById: jest.fn(),
     } as unknown as jest.Mocked<ConversationsService>;
     authIdentityService = {
       authenticateSocket: jest.fn(),
@@ -79,5 +81,22 @@ describe('MessagesGateway', () => {
       status: 'delivered',
     });
     expect(result.status).toBe('delivered');
+  });
+
+  it('only joins conversation rooms the user belongs to', async () => {
+    conversationsService.getConversationById.mockResolvedValue({ id: 7 } as any);
+
+    await gateway.handleJoin(7, socket);
+
+    expect(conversationsService.getConversationById).toHaveBeenCalledWith(7, user);
+    expect(socket.join).toHaveBeenCalledWith('conversation:7');
+  });
+
+  it('rejects join requests for conversations the user does not belong to', async () => {
+    conversationsService.getConversationById.mockResolvedValue(null);
+
+    await expect(gateway.handleJoin(7, socket)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 });

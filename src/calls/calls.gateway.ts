@@ -7,20 +7,25 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { User } from '../entities/user.entity';
 import { AuthIdentityService } from '../auth/auth-identity.service';
 import { CallsService } from './calls.service';
 import { CreateCallDto } from './dto/create-call.dto';
 import { CallResponseDto } from './dto/call-response.dto';
+import { PresenceStateService } from '../presence/presence-state.service';
+import { socketGatewayOptions } from '../common/socket-gateway-options';
 
-@WebSocketGateway({ cors: { origin: '*' } })
+@WebSocketGateway(socketGatewayOptions)
 export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
+  private readonly logger = new Logger(CallsGateway.name);
 
   constructor(
     private readonly authIdentityService: AuthIdentityService,
     private readonly callsService: CallsService,
+    private readonly presenceStateService: PresenceStateService,
   ) {}
 
   async handleConnection(socket: Socket) {
@@ -28,6 +33,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const { user } = await this.authIdentityService.authenticateSocket(socket);
       socket.join(`user:${user.externalId}`);
     } catch (error) {
+      this.logger.warn(`Socket authentication failed for ${socket.id}`);
       socket.disconnect();
     }
   }
@@ -38,12 +44,24 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    if (
+      this.presenceStateService.hasOtherActiveSockets(
+        user.externalId,
+        socket.id,
+      )
+    ) {
+      return;
+    }
+
     try {
       const updatedCall = await this.callsService.handleDisconnect(user);
       if (updatedCall) {
         this.emitCallUpdate('call_state_changed', updatedCall);
       }
     } catch (error) {
+      this.logger.warn(
+        `Failed to handle call disconnect for ${user.externalId}: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
       return;
     }
   }

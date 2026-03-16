@@ -121,6 +121,7 @@ Primary environment groups in [`.env.example`](C:\Users\DEEPIJA\Downloads\chat-s
 Important defaults:
 
 - `DB_SYNCHRONIZE=false`
+- `CORS_ORIGINS=http://localhost:3001,http://127.0.0.1:3001`
 - `UPLOAD_PATH=storage/assets/chat/uploads`
 - `ASSETS_PATH=storage/assets`
 - `SOCKET_ADMIN_ENABLED=false`
@@ -166,6 +167,7 @@ The command prints a `Remote test URL` that points to `/frontend/index.html` thr
 - no group calling
 - no SFU/media-server integration
 - reference client is intentionally minimal
+- presence is still stored in-memory, so it is not yet designed for multi-instance deployments
 
 ## License
 

@@ -2,11 +2,13 @@ import { CallsGateway } from './calls.gateway';
 import { CallsService } from './calls.service';
 import { AuthIdentityService } from '../auth/auth-identity.service';
 import { CallStatus, CallType } from './call-session.entity';
+import { PresenceStateService } from '../presence/presence-state.service';
 
 describe('CallsGateway', () => {
   let gateway: CallsGateway;
   let callsService: jest.Mocked<CallsService>;
   let authIdentityService: jest.Mocked<AuthIdentityService>;
+  let presenceStateService: jest.Mocked<PresenceStateService>;
   let socket: any;
   let server: any;
 
@@ -79,7 +81,15 @@ describe('CallsGateway', () => {
       authenticateSocket: jest.fn(),
     } as unknown as jest.Mocked<AuthIdentityService>;
 
-    gateway = new CallsGateway(authIdentityService, callsService);
+    presenceStateService = {
+      hasOtherActiveSockets: jest.fn(),
+    } as unknown as jest.Mocked<PresenceStateService>;
+
+    gateway = new CallsGateway(
+      authIdentityService,
+      callsService,
+      presenceStateService,
+    );
     server = {
       to: jest.fn().mockReturnThis(),
       emit: jest.fn(),
@@ -87,6 +97,7 @@ describe('CallsGateway', () => {
     gateway.server = server;
 
     socket = {
+      id: 'socket-1',
       data: { user: alice },
       join: jest.fn(),
       disconnect: jest.fn(),
@@ -145,5 +156,13 @@ describe('CallsGateway', () => {
       fromUserExternalId: 'appA:alice',
       sdp: { type: 'answer' },
     });
+  });
+
+  it('does not end a call when the user still has another active socket', async () => {
+    presenceStateService.hasOtherActiveSockets.mockReturnValue(true);
+
+    await gateway.handleDisconnect(socket);
+
+    expect(callsService.handleDisconnect).not.toHaveBeenCalled();
   });
 });

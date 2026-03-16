@@ -2,9 +2,16 @@ export default () => ({
   app: {
     port: parseInt(process.env.PORT || '3001', 10),
     apiPrefix: process.env.API_PREFIX || 'api/v1',
+    corsDefaults: [
+      `http://localhost:${process.env.PORT || '3001'}`,
+      `http://127.0.0.1:${process.env.PORT || '3001'}`,
+    ],
     corsOrigins: process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
-      : ['*'],
+      : [
+          `http://localhost:${process.env.PORT || '3001'}`,
+          `http://127.0.0.1:${process.env.PORT || '3001'}`,
+        ],
   },
   database: {
     type: 'mysql' as const,
@@ -64,8 +71,8 @@ export default () => ({
     iceTransportPolicy: process.env.RTC_ICE_TRANSPORT_POLICY || 'all',
   },
   socketAdmin: {
-    enabled: process.env.SOCKET_ADMIN_ENABLED !== 'false',
-    authEnabled: process.env.SOCKET_ADMIN_AUTH_ENABLED === 'true',
+    enabled: process.env.SOCKET_ADMIN_ENABLED === 'true',
+    authEnabled: process.env.SOCKET_ADMIN_AUTH_ENABLED !== 'false',
     username: process.env.ADMIN_USERNAME || 'admin',
     password: process.env.ADMIN_PASSWORD || 'admin123',
   },
