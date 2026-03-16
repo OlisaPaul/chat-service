@@ -39,6 +39,18 @@ export class MessageResponseDto {
   senderName: string;
 
   @ApiProperty({
+    description: 'Sender internal user ID',
+    example: 1,
+  })
+  senderId?: number;
+
+  @ApiProperty({
+    description: 'Sender external user ID',
+    example: 'appA:alice',
+  })
+  senderExternalId?: string;
+
+  @ApiProperty({
     description: 'Whether this message was sent by the current user',
     example: false,
   })
@@ -68,6 +80,8 @@ export class MessageResponseDto {
     this.content = message.content;
     this.mediaUrl = message.mediaUrl;
     this.mediaType = message.mediaType;
+    this.senderId = message.sender?.id;
+    this.senderExternalId = message.sender?.externalId;
     this.senderName = message.sender?.name ?? 'Unknown';
     this.sentByMe = message.sender?.id === currentUser.id;
     this.status = message.status;

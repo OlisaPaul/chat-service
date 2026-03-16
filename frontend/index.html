@@ -3,504 +3,993 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Real-Time Chat - Alice & Bob</title>
+    <title>Reference Chat + Call Demo</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-
-      .container {
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        width: 100%;
-        max-width: 400px;
-        height: 600px;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 20px;
-        text-align: center;
-      }
-
-      .user-selector {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        margin-bottom: 15px;
-      }
-
-      .user-btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 20px;
-        cursor: pointer;
-        font-weight: bold;
-        transition: all 0.3s;
-      }
-
-      .user-btn.active {
-        background: #4caf50;
-        color: white;
-      }
-
-      .user-btn.online::after {
-        content: '🟢';
-        margin-left: 5px;
-      }
-
-      .user-btn.offline::after {
-        content: '⚪';
-        margin-left: 5px;
-      }
-
-      .user-btn:not(.active) {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-      }
-
-      .status {
-        font-size: 14px;
-        opacity: 0.9;
-      }
-
-      .chat-area {
-        flex: 1;
-        padding: 20px;
-        overflow-y: auto;
-        background: #f8f9fa;
-      }
-
-      .message {
-        margin-bottom: 15px;
-        padding: 12px 16px;
-        border-radius: 18px;
-        max-width: 70%;
-        word-wrap: break-word;
-        position: relative;
-      }
-
-      .message.sent {
-        background: #007bff;
-        color: white;
-        margin-left: auto;
-        border-bottom-right-radius: 4px;
-      }
-
-      .message.received {
-        background: white;
-        color: #333;
-        margin-right: auto;
-        border-bottom-left-radius: 4px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-
-      .message-time {
-        font-size: 11px;
-        opacity: 0.7;
-        margin-top: 4px;
-      }
-
-      .typing-indicator {
-        font-style: italic;
-        color: #666;
-        font-size: 14px;
-        margin-bottom: 10px;
-      }
-
-      .input-area {
-        padding: 20px;
-        background: white;
-        border-top: 1px solid #eee;
-        display: flex;
-        gap: 10px;
-      }
-
-      .message-input {
-        flex: 1;
-        padding: 12px 16px;
-        border: 2px solid #e9ecef;
-        border-radius: 25px;
-        outline: none;
-        font-size: 16px;
-        transition: border-color 0.3s;
-      }
-
-      .message-input:focus {
-        border-color: #007bff;
-      }
-
-      .send-btn {
-        padding: 12px 20px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 25px;
-        cursor: pointer;
-        font-weight: bold;
-        transition: background 0.3s;
-      }
-
-      .send-btn:hover {
-        background: #0056b3;
-      }
-
-      .send-btn:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-      }
-
-      .connection-status {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: #ccc;
-        transition: background 0.3s;
-      }
-
-      .connection-status.connected {
-        background: #4caf50;
-      }
-
-      .connection-status.disconnected {
-        background: #f44336;
-      }
+      body { margin: 0; font-family: Arial, sans-serif; background: #0f172a; color: #111827; }
+      .app { display: grid; grid-template-columns: 320px 1fr; gap: 16px; min-height: 100vh; padding: 16px; }
+      .panel { background: #fff; border-radius: 20px; box-shadow: 0 16px 40px rgba(0,0,0,.18); overflow: hidden; }
+      .sidebar { padding: 20px; }
+      .sidebar h1, .chat-header h2 { margin: 0 0 8px; }
+      .section { margin-bottom: 20px; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      button, input, select { border-radius: 999px; border: 1px solid #cbd5e1; padding: 10px 14px; font-size: 14px; }
+      button { cursor: pointer; font-weight: 700; }
+      button:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
+      .active { background: #2563eb; color: #fff; }
+      .primary { background: #0f766e; color: #fff; }
+      .secondary { background: #1d4ed8; color: #fff; }
+      .danger { background: #dc2626; color: #fff; }
+      .meta { font-size: 13px; color: #475569; }
+      .status { padding: 12px 14px; border-radius: 16px; background: #eff6ff; }
+      .chat { display: flex; flex-direction: column; }
+      .chat-header { padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; gap: 12px; }
+      .pill { padding: 8px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; align-self: start; }
+      .connected { background: #dcfce7; color: #166534; }
+      .disconnected { background: #fee2e2; color: #991b1b; }
+      .messages { flex: 1; overflow-y: auto; background: #f8fafc; padding: 18px; }
+      .message { max-width: 70%; padding: 12px; border-radius: 18px; margin-bottom: 10px; }
+      .sent { margin-left: auto; background: #2563eb; color: #fff; }
+      .received { background: #fff; color: #111827; }
+      .note { text-align: center; color: #64748b; font-size: 13px; margin: 10px 0; }
+      .composer { padding: 18px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; }
+      .composer input { flex: 1; }
+      .media-grid { display: grid; gap: 10px; margin-top: 10px; }
+      .video-card { display: none; background: #0f172a; border-radius: 16px; padding: 8px; color: #e2e8f0; }
+      .video-card.active { display: block; }
+      .video-card strong { display: block; font-size: 12px; margin-bottom: 6px; }
+      video, audio { width: 100%; margin-top: 8px; border-radius: 12px; background: #020617; }
+      video { aspect-ratio: 16 / 9; object-fit: cover; }
+      @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div class="header">
-        <div class="user-selector">
-          <button class="user-btn" id="alice-btn">Alice</button>
-          <button class="user-btn" id="bob-btn">Bob</button>
+    <div class="app">
+      <aside class="panel sidebar">
+        <h1>Reference Demo</h1>
+        <p class="meta">Chat plus 1:1 audio and video calling against the current backend.</p>
+
+        <div class="section">
+          <strong>Choose user</strong>
+          <div class="row" style="margin-top:8px">
+            <button id="alice-btn" data-user="alice">Alice</button>
+            <button id="bob-btn" data-user="bob">Bob</button>
+          </div>
         </div>
-        <div class="status" id="status">Select a user to start chatting</div>
-      </div>
 
-      <div class="chat-area" id="chat-area">
-        <div class="connection-status" id="connection-status"></div>
-      </div>
+        <div class="section">
+          <strong>Session</strong>
+          <div class="status" style="margin-top:8px">
+            <div id="session-name">No user selected</div>
+            <div class="meta" id="session-detail">Select Alice or Bob to connect.</div>
+          </div>
+        </div>
 
-      <div class="input-area">
-        <input
-          type="text"
-          class="message-input"
-          id="message-input"
-          placeholder="Type a message..."
-          disabled
-        />
-        <button class="send-btn" id="send-btn" disabled>Send</button>
-      </div>
+        <div class="section">
+          <strong>Choose target</strong>
+          <div class="row" style="margin-top:8px">
+            <select id="target-select" disabled style="flex:1; min-width: 0; border-radius: 16px; padding: 10px 14px;">
+              <option value="">Select a user</option>
+            </select>
+          </div>
+          <p class="meta" id="target-detail" style="margin:8px 0 0">Pick who this session should message and call.</p>
+        </div>
+
+        <div class="section">
+          <strong>Call state</strong>
+          <div class="status" style="margin-top:8px">
+            <div id="call-title">Idle</div>
+            <div class="meta" id="call-detail">No active call.</div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="primary" id="audio-call-btn" disabled>Start audio call</button>
+            <button class="secondary" id="video-call-btn" disabled>Start video call</button>
+            <button id="accept-btn" disabled>Accept</button>
+            <button id="reject-btn" disabled>Reject</button>
+            <button class="danger" id="hangup-btn" disabled>Hang up</button>
+          </div>
+          <div class="media-grid">
+            <div class="video-card" id="local-video-card">
+              <strong>Local preview</strong>
+              <video id="local-video" autoplay muted playsinline></video>
+            </div>
+            <div class="video-card" id="remote-video-card">
+              <strong>Remote video</strong>
+              <video id="remote-video" autoplay playsinline></video>
+            </div>
+          </div>
+          <audio id="remote-audio" autoplay playsinline></audio>
+          <audio id="local-audio" autoplay muted playsinline></audio>
+        </div>
+      </aside>
+
+      <main class="panel chat">
+        <div class="chat-header">
+          <div>
+            <h2 id="chat-title">Select a user</h2>
+            <div class="meta" id="chat-subtitle">The demo will load a direct conversation and connect sockets.</div>
+          </div>
+          <div class="pill disconnected" id="connection-pill">Disconnected</div>
+        </div>
+
+        <div class="messages" id="messages">
+          <div class="note">No messages yet.</div>
+        </div>
+
+        <div class="composer">
+          <input id="message-input" placeholder="Type a message..." disabled />
+          <button class="primary" id="send-btn" disabled>Send</button>
+        </div>
+      </main>
     </div>
 
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
     <script>
-      // Configuration
-      const API_BASE = 'http://localhost:3001';
-      const WS_URL = 'http://localhost:3001';
+      const DEFAULT_SERVER_ORIGIN = 'http://localhost:3001';
+      const urlParams = new URLSearchParams(window.location.search);
+      const serverOriginOverride = urlParams.get('serverOrigin');
+      const SERVER_ORIGIN =
+        serverOriginOverride ||
+        (window.location.protocol === 'file:'
+          ? DEFAULT_SERVER_ORIGIN
+          : window.location.origin);
+      const API_BASE = `${SERVER_ORIGIN}/api/v1`;
+      const WS_URL = SERVER_ORIGIN;
+      const TOKENS = {
+        alice: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmFsaWNlIiwibmFtZSI6IkFsaWNlIiwiaWF0IjoxNzczMzkwNzE2LCJleHAiOjIwODg3NTA3MTZ9.0O6NTGl5oITgdjEcda14rnHYyCMLYx_l4aC2Hg1CzNM',
+        bob: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmJvYiIsIm5hbWUiOiJCb2IiLCJpYXQiOjE3NzMzOTA3MTYsImV4cCI6MjA4ODc1MDcxNn0.CYCxFDEoibir79ZGn_H1ZoAfOGb6iyTO7EvbH028WXQ',
+      };
+      const TERMINAL_CALL_STATUSES = ['rejected', 'cancelled', 'ended', 'missed', 'failed'];
 
-      // JWT tokens (freshly generated)
-      const tokens = {
-        alice:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmFsaWNlIiwibmFtZSI6IkFsaWNlIiwiaWF0IjoxNzYwOTkzOTEwLCJleHAiOjE3NjE1OTg3MTB9.xZbEB9kvDo0dA0PfwB6V3Se_FfUNccNF70h2b37KvX8',
-        bob: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmJvYiIsIm5hbWUiOiJCb2IiLCJpYXQiOjE3NjA5OTM5MTAsImV4cCI6MTc2MTU5ODcxMH0.Eq1gkxazB-sn7P3aMjw2eonywL69mZRS_6BNgbWV8O8',
+      const state = {
+        key: null, me: null, other: null, socket: null, conversationId: null, typingTimeout: null,
+        activeCall: null, incomingCall: null, rtcConfig: null, peer: null, localStream: null, remoteStream: null, pendingCandidates: [],
+        availableTargets: [],
+        currentSignalTargetExternalId: null,
+        lastCompletedCallId: null,
       };
 
-      // State
-      let currentUser = null;
-      let socket = null;
-      let conversationId = null;
-      let typingTimeout = null;
+      const el = {
+        aliceBtn: document.getElementById('alice-btn'),
+        bobBtn: document.getElementById('bob-btn'),
+        sessionName: document.getElementById('session-name'),
+        sessionDetail: document.getElementById('session-detail'),
+        targetSelect: document.getElementById('target-select'),
+        targetDetail: document.getElementById('target-detail'),
+        chatTitle: document.getElementById('chat-title'),
+        chatSubtitle: document.getElementById('chat-subtitle'),
+        connectionPill: document.getElementById('connection-pill'),
+        messages: document.getElementById('messages'),
+        messageInput: document.getElementById('message-input'),
+        sendBtn: document.getElementById('send-btn'),
+        audioCallBtn: document.getElementById('audio-call-btn'),
+        videoCallBtn: document.getElementById('video-call-btn'),
+        acceptBtn: document.getElementById('accept-btn'),
+        rejectBtn: document.getElementById('reject-btn'),
+        hangupBtn: document.getElementById('hangup-btn'),
+        callTitle: document.getElementById('call-title'),
+        callDetail: document.getElementById('call-detail'),
+        localVideoCard: document.getElementById('local-video-card'),
+        remoteVideoCard: document.getElementById('remote-video-card'),
+        localVideo: document.getElementById('local-video'),
+        remoteVideo: document.getElementById('remote-video'),
+        remoteAudio: document.getElementById('remote-audio'),
+        localAudio: document.getElementById('local-audio'),
+      };
 
-      // DOM elements
-      const aliceBtn = document.getElementById('alice-btn');
-      const bobBtn = document.getElementById('bob-btn');
-      const statusEl = document.getElementById('status');
-      const chatArea = document.getElementById('chat-area');
-      const messageInput = document.getElementById('message-input');
-      const sendBtn = document.getElementById('send-btn');
-      const connectionStatus = document.getElementById('connection-status');
+      init();
 
-      // Initialize
       function init() {
-        aliceBtn.addEventListener('click', () => selectUser('alice'));
-        bobBtn.addEventListener('click', () => selectUser('bob'));
-        sendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', handleKeyPress);
-        messageInput.addEventListener('input', handleTyping);
-
-        // Load users and online status
-        loadUsers();
+        el.aliceBtn.onclick = () => selectUser('alice');
+        el.bobBtn.onclick = () => selectUser('bob');
+        el.targetSelect.onchange = changeTarget;
+        el.sendBtn.onclick = sendMessage;
+        el.messageInput.onkeypress = (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            sendMessage();
+          }
+        };
+        el.messageInput.oninput = handleTyping;
+        el.audioCallBtn.onclick = () => startCall('audio');
+        el.videoCallBtn.onclick = () => startCall('video');
+        el.acceptBtn.onclick = acceptIncomingCall;
+        el.rejectBtn.onclick = rejectIncomingCall;
+        el.hangupBtn.onclick = hangupCall;
       }
 
-      // Select user
-      async function selectUser(user) {
-        currentUser = user;
+      async function selectUser(key) {
+        state.key = key;
+        resetUi();
+        setConnection(false);
+        setCallState('Connecting...', 'Authenticating and loading the reference client state.');
+        setActiveUserButton();
 
-        // Clear previous messages
-        chatArea.innerHTML =
-          '<div class="connection-status" id="connection-status"></div>';
+        try {
+          state.me = await apiGet('/auth/me');
+          await loadTargetUsers();
+          state.rtcConfig = await apiGet('/calls/rtc-config');
+          updateHeader();
+          connectSocket();
+          await createConversation();
+          await loadMessages();
+          updateComposerState();
+          updateCallButtons();
+        } catch (error) {
+          console.error(error);
+          el.sessionName.textContent = 'Connection failed';
+          el.sessionDetail.textContent = error.message || 'Unable to initialize the selected user.';
+          updateComposerState();
+        }
+      }
 
-        // Update UI
-        aliceBtn.classList.toggle('active', user === 'alice');
-        bobBtn.classList.toggle('active', user === 'bob');
-        statusEl.textContent = `Connecting as ${user.charAt(0).toUpperCase() + user.slice(1)}...`;
+      async function loadTargetUsers() {
+        const response = await apiGet('/users');
+        const users = response.data || [];
+        state.availableTargets = users.filter((user) => user.externalId !== state.me.externalId);
 
-        // Enable input
-        messageInput.disabled = false;
-        sendBtn.disabled = false;
+        const preferredExternalId = state.key === 'alice' ? 'appA:bob' : 'appA:alice';
+        state.other =
+          state.availableTargets.find((user) => user.externalId === preferredExternalId) ||
+          state.availableTargets[0] ||
+          null;
 
-        // Connect to WebSocket
-        connectWebSocket();
+        populateTargetSelect();
+      }
 
-        // Create/get conversation
+      function populateTargetSelect() {
+        el.targetSelect.innerHTML = '';
+
+        if (!state.availableTargets.length) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'No other users available';
+          el.targetSelect.appendChild(option);
+          el.targetSelect.disabled = true;
+          el.targetDetail.textContent = 'Create another authenticated user before testing direct chat or calls.';
+          return;
+        }
+
+        state.availableTargets.forEach((user) => {
+          const option = document.createElement('option');
+          option.value = user.externalId;
+          option.textContent = `${user.name} (${user.externalId})`;
+          option.selected = user.externalId === state.other?.externalId;
+          el.targetSelect.appendChild(option);
+        });
+
+        el.targetSelect.disabled = hasLiveCall();
+        el.targetDetail.textContent = state.other
+          ? `Current target: ${state.other.name}`
+          : 'Pick who this session should message and call.';
+      }
+
+      async function changeTarget() {
+        const nextExternalId = el.targetSelect.value;
+        state.other =
+          state.availableTargets.find((user) => user.externalId === nextExternalId) || null;
+
+        resetConversationState();
+        updateHeader();
+
+        if (!state.other || hasLiveCall()) {
+          populateTargetSelect();
+          updateComposerState();
+          updateCallButtons();
+          return;
+        }
+
         await createConversation();
+        await loadMessages();
+        updateComposerState();
+        updateCallButtons();
       }
 
-      // Connect to WebSocket
-      function connectWebSocket() {
-        if (socket) socket.disconnect();
-
-        socket = io(WS_URL, {
-          auth: { token: tokens[currentUser] },
+      function connectSocket() {
+        if (state.socket) state.socket.disconnect();
+        state.socket = io(WS_URL, {
+          auth: { token: TOKENS[state.key] },
           transports: ['websocket', 'polling'],
         });
 
-        socket.on('connect', () => {
-          console.log(`${currentUser} connected`);
-          statusEl.textContent = `Connected as ${currentUser.charAt(0).toUpperCase() + currentUser.slice(1)}`;
-          connectionStatus.className = 'connection-status connected';
+        state.socket.on('connect', async () => {
+          setConnection(true);
+          joinActiveConversation();
+          await refreshPresence();
+          await syncActiveCall();
+          updateCallButtons();
         });
-
-        socket.on('disconnect', () => {
-          console.log(`${currentUser} disconnected`);
-          statusEl.textContent = `Disconnected - trying to reconnect...`;
-          connectionStatus.className = 'connection-status disconnected';
-        });
-
-        socket.on('new_message', (message) => {
-          // Determine if this message was sent by the current user
-          const isSentByMe =
-            message.senderName ===
-            currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
-          displayMessage({ ...message, sentByMe: isSentByMe });
-        });
-
-        socket.on('user_typing', (data) => {
-          console.log('User typing', data);
-          showTypingIndicator(data);
-        });
-      }
-
-      // Create conversation
-      async function createConversation() {
-        try {
-          const otherUser = currentUser === 'alice' ? 'appA:bob' : 'appA:alice';
-          const response = await fetch(
-            `${API_BASE}/conversations/private/${otherUser}`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${tokens[currentUser]}`,
-                'Content-Type': 'application/json',
-              },
-            },
-          );
-
-          const data = await response.json();
-          conversationId = data.id;
-          console.log('Conversation created:', data);
-
-          // Load existing messages
-          await loadMessages();
-        } catch (error) {
-          console.error('Failed to create conversation:', error);
-        }
-      }
-
-      // Load existing messages
-      async function loadMessages() {
-        if (!conversationId) return;
-
-        try {
-          const response = await fetch(
-            `${API_BASE}/messages/${conversationId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${tokens[currentUser]}`,
-              },
-            },
-          );
-
-          let messages = await response.json();
-          messages = messages.reverse();
-          console.log('Loaded messages:', messages);
-
-          // Clear chat area and add connection status back
-          chatArea.innerHTML =
-            '<div class="connection-status" id="connection-status"></div>';
-          const connectionStatus = document.getElementById('connection-status');
-          if (socket && socket.connected) {
-            connectionStatus.className = 'connection-status connected';
+        state.socket.on('disconnect', () => {
+          setConnection(false);
+          if (hasLiveCall()) {
+            setCallState('Reconnecting call', 'Socket disconnected. Rechecking active call state.');
           }
-
-          // Display loaded messages
-          messages.forEach((message) => {
-            // Determine if this message was sent by the current user
-            const isSentByMe =
-              message.senderName ===
-              currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
-            displayMessage({ ...message, sentByMe: isSentByMe });
-          });
-        } catch (error) {
-          console.error('Failed to load messages:', error);
-        }
+          updateCallButtons();
+        });
+        state.socket.on('connect_error', (error) => {
+          setCallState('Call issue', error.message || 'Socket connection failed.');
+        });
+        state.socket.on('new_message', renderMessage);
+        state.socket.on('user_typing', renderTyping);
+        state.socket.on('user_status_changed', refreshPresence);
+        state.socket.on('incoming_call', handleIncomingCall);
+        state.socket.on('call_answered', handleAnsweredCall);
+        state.socket.on('call_rejected', (call) => handleTerminalCallEvent(call, `${otherName(call)} rejected the call.`));
+        state.socket.on('call_cancelled', (call) => handleTerminalCallEvent(call, 'The caller cancelled the call.'));
+        state.socket.on('call_ended', (call) => handleTerminalCallEvent(call, 'The call ended.'));
+        state.socket.on('call_state_changed', handleCallStateChanged);
+        state.socket.on('webrtc_offer', handleOffer);
+        state.socket.on('webrtc_answer', handleAnswer);
+        state.socket.on('ice_candidate', handleIceCandidate);
       }
 
-      // Send message
+      async function createConversation() {
+        if (!state.other?.externalId) {
+          state.conversationId = null;
+          updateComposerState();
+          return;
+        }
+        const conversation = await apiPost(`/conversations/private/${encodeURIComponent(state.other.externalId)}`);
+        state.conversationId = conversation.id;
+        joinActiveConversation();
+        updateComposerState();
+      }
+
+      async function loadMessages() {
+        if (!state.conversationId) {
+          clearMessages();
+          addNote('Choose a target user to load or create a direct conversation.');
+          return;
+        }
+        const response = await apiGet(`/messages/${state.conversationId}`);
+        const messages = (response.data || []).slice().reverse();
+        clearMessages();
+        if (!messages.length) {
+          addNote('Conversation ready. Send a message or place an audio call.');
+          return;
+        }
+        messages.forEach(renderMessage);
+      }
+
       async function sendMessage() {
-        const content = messageInput.value.trim();
-        if (!content || !conversationId) return;
+        const content = el.messageInput.value.trim();
+        if (!content || !state.socket || !state.conversationId) return;
+        state.socket.emit('send_message', { conversationId: state.conversationId, content });
+        el.messageInput.value = '';
+        stopTyping();
+      }
 
+      async function startCall(type) {
+        if (!state.socket || !state.other?.id) return;
         try {
-          // Send via WebSocket
-          socket.emit('send_message', {
-            conversationId: conversationId,
-            content: content,
+          await ensureLocalMedia(type);
+          const call = await emitRequest('start_call', {
+            targetUserId: state.other.id,
+            type,
           });
-
-          // Clear input
-          messageInput.value = '';
-          stopTyping();
+          applyCallSnapshot(call, `Calling ${otherName(call)} with ${type}...`);
         } catch (error) {
-          console.error('Failed to send message:', error);
+          console.error(error);
+          setCallState('Call issue', error.message || 'Unable to start the call.');
+          destroyPeerConnection();
         }
       }
 
-      // Handle key press
-      function handleKeyPress(event) {
-        if (event.key === 'Enter') {
-          sendMessage();
+      async function acceptIncomingCall() {
+        if (!state.incomingCall) return;
+        try {
+          await ensureLocalMedia(state.incomingCall.type);
+          const call = await emitRequest('accept_call', { callId: state.incomingCall.id });
+          await handleAnsweredCall(call);
+        } catch (error) {
+          console.error(error);
+          setCallState('Call issue', error.message || 'Unable to accept the call.');
+          destroyPeerConnection();
         }
       }
 
-      // Handle typing
+      async function rejectIncomingCall() {
+        if (!state.incomingCall) return;
+        try {
+          const call = await emitRequest('reject_call', { callId: state.incomingCall.id });
+          handleTerminalCallEvent(call, `Rejected ${otherName(call)}.`);
+        } catch (error) {
+          console.error(error);
+          setCallState('Call issue', error.message || 'Unable to reject the call.');
+        }
+      }
+
+      async function hangupCall() {
+        if (!state.activeCall) return;
+        try {
+          const event = state.activeCall.status === 'ringing' && state.activeCall.initiatorId === state.me.id ? 'cancel_call' : 'end_call';
+          const call = await emitRequest(event, { callId: state.activeCall.id });
+          handleTerminalCallEvent(call, 'You left the call.');
+        } catch (error) {
+          console.error(error);
+          setCallState('Call issue', error.message || 'Unable to end the call.');
+        }
+      }
+
+      async function handleIncomingCall(call) {
+        if (!state.me) return;
+        if (isCompletedCall(call.id)) return;
+        adoptTargetFromCall(call);
+        if (call.initiatorId === state.me.id) {
+          applyCallSnapshot(call, `Calling ${otherName(call)} with ${call.type}...`);
+        } else {
+          applyCallSnapshot(call, `${otherName(call)} is calling you for a ${call.type} call.`);
+        }
+      }
+
+      async function handleAnsweredCall(call) {
+        adoptTargetFromCall(call);
+        applyCallSnapshot(call, `Connected to ${otherName(call)} for a ${call.type} call.`);
+        await ensureLocalMedia(call.type);
+        await ensurePeerConnection(otherExternalId(call), call.type);
+        setCallState(
+          call.type === 'video' ? 'Video call connected' : 'Audio call connected',
+          `Connected to ${otherName(call)}.`,
+        );
+
+        if (call.initiatorId === state.me.id) {
+          const offer = await state.peer.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: call.type === 'video' });
+          await state.peer.setLocalDescription(offer);
+          state.socket.emit('webrtc_offer', {
+            callId: call.id,
+            targetUserExternalId: otherExternalId(call),
+            sdp: state.peer.localDescription,
+          });
+        }
+      }
+
+      async function handleOffer({ callId, fromUserExternalId, sdp }) {
+        if (!state.activeCall || state.activeCall.id !== callId || state.activeCall.status !== 'accepted') return;
+        await ensureLocalMedia(state.activeCall.type);
+        await ensurePeerConnection(fromUserExternalId, state.activeCall.type);
+        await state.peer.setRemoteDescription(new RTCSessionDescription(sdp));
+        await flushCandidates();
+        const answer = await state.peer.createAnswer();
+        await state.peer.setLocalDescription(answer);
+        state.socket.emit('webrtc_answer', {
+          callId,
+          targetUserExternalId: fromUserExternalId,
+          sdp: state.peer.localDescription,
+        });
+      }
+
+      async function handleAnswer({ callId, sdp }) {
+        if (!state.activeCall || state.activeCall.id !== callId || state.activeCall.status !== 'accepted' || !state.peer) return;
+        await state.peer.setRemoteDescription(new RTCSessionDescription(sdp));
+        await flushCandidates();
+      }
+
+      async function handleIceCandidate({ callId, candidate }) {
+        if (!state.activeCall || state.activeCall.id !== callId || state.activeCall.status !== 'accepted') return;
+        const rtcCandidate = new RTCIceCandidate(candidate);
+        if (!state.peer || !state.peer.remoteDescription) {
+          state.pendingCandidates.push(rtcCandidate);
+          return;
+        }
+        await state.peer.addIceCandidate(rtcCandidate);
+      }
+
+      async function ensureLocalMedia(callType) {
+        const constraints = getMediaConstraints(callType);
+        const needsVideo = Boolean(constraints.video);
+        const hasVideoTrack = Boolean(state.localStream?.getVideoTracks().length);
+        if (state.localStream && (!needsVideo || hasVideoTrack)) return state.localStream;
+        if (state.localStream) {
+          state.localStream.getTracks().forEach((track) => track.stop());
+        }
+        try {
+          state.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (error) {
+          throw new Error(getMediaErrorMessage(error, callType));
+        }
+        attachLocalMedia(state.localStream, callType);
+        return state.localStream;
+      }
+
+      function getMediaConstraints(callType) {
+        return { audio: true, video: callType === 'video' };
+      }
+
+      async function ensurePeerConnection(targetExternalId, callType) {
+        state.currentSignalTargetExternalId = targetExternalId;
+        if (state.peer) return state.peer;
+        state.remoteStream = new MediaStream();
+        attachRemoteMedia(state.remoteStream, callType);
+        state.peer = new RTCPeerConnection(buildRtcConfig());
+        const stream = await ensureLocalMedia(callType);
+        stream.getTracks().forEach((track) => state.peer.addTrack(track, stream));
+        state.peer.ontrack = (event) => {
+          event.streams[0].getTracks().forEach((track) => state.remoteStream.addTrack(track));
+          attachRemoteMedia(state.remoteStream, state.activeCall?.type || callType);
+        };
+        state.peer.onicecandidate = (event) => {
+          if (!event.candidate || !state.activeCall || !state.currentSignalTargetExternalId) return;
+          state.socket.emit('ice_candidate', {
+            callId: state.activeCall.id,
+            targetUserExternalId: state.currentSignalTargetExternalId,
+            candidate: event.candidate,
+          });
+        };
+        state.peer.onconnectionstatechange = () => {
+          if (!state.peer) return;
+          if (state.peer.connectionState === 'connected') {
+            const hasRemoteVideo =
+              Boolean(state.remoteStream && state.remoteStream.getVideoTracks().length);
+            if ((state.activeCall?.type || callType) === 'video' && !hasRemoteVideo) {
+              setCallState('Video call connected', `Connected to ${otherName(state.activeCall)}. Waiting for remote video.`);
+            } else {
+              setCallState(
+                (state.activeCall?.type || callType) === 'video'
+                  ? 'Live video call'
+                  : 'Live audio call',
+                `${(state.activeCall?.type || callType) === 'video' ? 'Video' : 'Audio'} connected to ${otherName(state.activeCall)}.`,
+              );
+            }
+            updateCallButtons();
+          }
+          if (['failed', 'disconnected'].includes(state.peer.connectionState)) {
+            setCallState(
+              callType === 'video' ? 'Reconnecting video call' : 'Reconnecting audio call',
+              'Peer connection changed state. Waiting for the call to recover or end.',
+            );
+          }
+        };
+        return state.peer;
+      }
+
+      function attachLocalMedia(stream, callType) {
+        el.localAudio.srcObject = stream;
+        el.localVideo.srcObject = stream;
+        toggleVideoCards(callType === 'video', false);
+      }
+
+      function attachRemoteMedia(stream, callType) {
+        el.remoteAudio.srcObject = stream;
+        el.remoteVideo.srcObject = stream;
+        const hasRemoteVideo = Boolean(stream?.getVideoTracks().length);
+        toggleVideoCards(callType === 'video', hasRemoteVideo);
+      }
+
+      function toggleVideoCards(showLocal, showRemote) {
+        el.localVideoCard.classList.toggle('active', showLocal);
+        el.remoteVideoCard.classList.toggle('active', showRemote);
+      }
+
+      function getMediaErrorMessage(error, callType) {
+        if (!error || typeof error !== 'object') {
+          return `Unable to access ${callType === 'video' ? 'camera and microphone' : 'microphone'}.`;
+        }
+
+        if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
+          return callType === 'video'
+            ? 'Video call requires camera and microphone permission.'
+            : 'Audio call requires microphone permission.';
+        }
+
+        if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+          return callType === 'video'
+            ? 'No camera or microphone device is available for a video call.'
+            : 'No microphone device is available for an audio call.';
+        }
+
+        if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+          return callType === 'video'
+            ? 'Camera or microphone is currently unavailable for a video call.'
+            : 'Microphone is currently unavailable for an audio call.';
+        }
+
+        return `Unable to start the ${callType} call media session.`;
+      }
+
+      async function flushCandidates() {
+        if (!state.peer || !state.peer.remoteDescription) return;
+        while (state.pendingCandidates.length) {
+          await state.peer.addIceCandidate(state.pendingCandidates.shift());
+        }
+      }
+
+      function buildRtcConfig() {
+        const iceServers = [];
+        if (state.rtcConfig?.stunUrls?.length) iceServers.push({ urls: state.rtcConfig.stunUrls });
+        if (state.rtcConfig?.turnUrls?.length) {
+          iceServers.push({
+            urls: state.rtcConfig.turnUrls,
+            username: state.rtcConfig.turnUsername,
+            credential: state.rtcConfig.turnPassword,
+          });
+        }
+        return { iceServers, iceTransportPolicy: state.rtcConfig?.iceTransportPolicy || 'all' };
+      }
+
       function handleTyping() {
-        if (!socket || !conversationId) return;
-
-        // Send typing start
-        socket.emit('typing_start', conversationId);
-
-        // Clear previous timeout
-        if (typingTimeout) clearTimeout(typingTimeout);
-
-        // Set timeout to stop typing
-        typingTimeout = setTimeout(stopTyping, 1000);
+        if (!state.socket || !state.conversationId) return;
+        state.socket.emit('typing_start', state.conversationId);
+        clearTimeout(state.typingTimeout);
+        state.typingTimeout = setTimeout(stopTyping, 1000);
       }
 
-      // Stop typing
       function stopTyping() {
-        if (socket && conversationId) {
-          socket.emit('typing_stop', conversationId);
-        }
-        if (typingTimeout) {
-          clearTimeout(typingTimeout);
-          typingTimeout = null;
-        }
+        if (state.socket && state.conversationId) state.socket.emit('typing_stop', state.conversationId);
+        clearTimeout(state.typingTimeout);
+        state.typingTimeout = null;
       }
 
-      // Display message
-      function displayMessage(message) {
-        const messageEl = document.createElement('div');
-        messageEl.className = `message ${message.sentByMe ? 'sent' : 'received'}`;
-
-        const contentEl = document.createElement('div');
-        contentEl.textContent = message.content;
-
-        const timeEl = document.createElement('div');
-        timeEl.className = 'message-time';
-        timeEl.textContent = new Date(message.createdAt).toLocaleTimeString();
-
-        messageEl.appendChild(contentEl);
-        messageEl.appendChild(timeEl);
-
-        chatArea.appendChild(messageEl);
-        chatArea.scrollTop = chatArea.scrollHeight;
-      }
-
-      // Show typing indicator
-      function showTypingIndicator(data) {
-        // Remove existing typing indicators
-        const existing = document.querySelector('.typing-indicator');
-        if (existing) existing.remove();
-
-        if (data.isTyping && data.userId !== `appA:${currentUser}`) {
-          const typingEl = document.createElement('div');
-          typingEl.className = 'typing-indicator';
-          typingEl.textContent = `${data.userName} is typing...`;
-          chatArea.appendChild(typingEl);
-        }
-      }
-
-      // Load users and online status
-      async function loadUsers() {
+      async function refreshPresence() {
+        if (!state.key) return;
         try {
-          // Fetch all users
-          const usersResponse = await fetch(`${API_BASE}/users`, {
-            headers: { Authorization: `Bearer ${tokens[currentUser]}` },
-          });
-          const allUsers = await usersResponse.json();
-
-          // Fetch online users
-          const onlineResponse = await fetch(`${API_BASE}/users/online`, {
-            headers: { Authorization: `Bearer ${tokens[currentUser]}` },
-          });
-          const onlineUsers = await onlineResponse.json();
-
-          // Create online user set for quick lookup
-          const onlineUserIds = new Set(onlineUsers.map(u => u.externalId));
-
-          // Update user buttons with status
-          allUsers.forEach(user => {
-            const status = onlineUserIds.has(user.externalId) ? 'online' : 'offline';
-            updateUserStatus(user.externalId, status);
-          });
+          const response = await apiGet('/users/online');
+          const online = new Set((response.data || []).map((user) => user.externalId));
+          updatePresenceButton(el.aliceBtn, online.has('appA:alice'));
+          updatePresenceButton(el.bobBtn, online.has('appA:bob'));
         } catch (error) {
-          console.error('Failed to load users:', error);
+          console.error('Presence refresh failed', error);
         }
       }
 
-      // Update user online/offline status
-      function updateUserStatus(userId, status) {
-        // Find user button by data attribute
-        const userBtn = document.querySelector(`[data-user="${userId.replace('appA:', '')}"]`);
-        if (userBtn) {
-          userBtn.classList.toggle('online', status === 'online');
-          userBtn.classList.toggle('offline', status === 'offline');
+      function updatePresenceButton(button, isOnline) {
+        button.classList.toggle('online', isOnline);
+        button.classList.toggle('offline', !isOnline);
+      }
+
+      function renderMessageLegacy(message) {
+        const existing = document.getElementById(`message-${message.id}`);
+        if (existing) {
+          existing.querySelector('.meta').textContent = `${new Date(message.createdAt).toLocaleTimeString()} · ${message.status}`;
+          return;
+        }
+        removeNotes();
+        const node = document.createElement('div');
+        node.id = `message-${message.id}`;
+        node.className = `message ${message.sentByMe ? 'sent' : 'received'}`;
+        node.innerHTML = `<div>${message.content || `[${message.mediaType || 'attachment'}]`}</div><div class="meta">${new Date(message.createdAt).toLocaleTimeString()} · ${message.status}</div>`;
+        el.messages.appendChild(node);
+        el.messages.scrollTop = el.messages.scrollHeight;
+      }
+
+      function renderTyping(payload) {
+        const existing = document.getElementById('typing-note');
+        if (existing) existing.remove();
+        if (!payload.isTyping || payload.userId === state.me?.externalId) return;
+        const note = document.createElement('div');
+        note.id = 'typing-note';
+        note.className = 'note';
+        note.textContent = `${payload.userName} is typing...`;
+        el.messages.appendChild(note);
+        el.messages.scrollTop = el.messages.scrollHeight;
+      }
+
+      function endCallUiLegacy(call, detail) {
+        state.activeCall = null;
+        state.incomingCall = null;
+        destroyPeerConnection();
+        setCallState('Idle', detail);
+        updateCallButtons();
+      }
+
+      function destroyPeerConnectionLegacy() {
+        if (state.peer) state.peer.close();
+        if (state.localStream) state.localStream.getTracks().forEach((track) => track.stop());
+        state.peer = null;
+        state.localStream = null;
+        state.remoteStream = null;
+        state.pendingCandidates = [];
+        el.localAudio.srcObject = null;
+        el.remoteAudio.srcObject = null;
+      }
+
+      function updateHeader() {
+        el.sessionName.textContent = state.me.name;
+        el.sessionDetail.textContent = `External ID: ${state.me.externalId}`;
+        el.chatTitle.textContent = `Chat as ${state.me.name}`;
+        el.chatSubtitle.textContent = state.other?.name
+          ? `Direct conversation target: ${state.other.name}`
+          : 'The other demo user has not been created yet.';
+        el.targetDetail.textContent = state.other
+          ? `Current target: ${state.other.name} (${state.other.externalId})`
+          : 'Pick who this session should message and call.';
+      }
+
+      function updateCallButtonsLegacy() {
+        const connected = Boolean(state.socket && state.socket.connected);
+        el.callBtn.disabled = !(connected && state.other?.id && !state.activeCall);
+        el.acceptBtn.disabled = !state.incomingCall;
+        el.rejectBtn.disabled = !state.incomingCall;
+        el.hangupBtn.disabled = !state.activeCall;
+      }
+
+      function setCallState(title, detail) {
+        el.callTitle.textContent = title;
+        el.callDetail.textContent = detail;
+      }
+
+      function setConnection(isConnected) {
+        el.connectionPill.textContent = isConnected ? 'Connected' : 'Disconnected';
+        el.connectionPill.className = `pill ${isConnected ? 'connected' : 'disconnected'}`;
+      }
+
+      function setActiveUserButton() {
+        [el.aliceBtn, el.bobBtn].forEach((button) => {
+          button.classList.toggle('active', button.dataset.user === state.key);
+        });
+      }
+
+      function clearMessages() {
+        el.messages.innerHTML = '';
+        addNote('No messages yet.');
+      }
+
+      function addNote(text) {
+        const note = document.createElement('div');
+        note.className = 'note';
+        note.textContent = text;
+        el.messages.appendChild(note);
+      }
+
+      function removeNotes() {
+        el.messages.querySelectorAll('.note').forEach((node) => node.remove());
+      }
+
+      function resetUiLegacy() {
+        state.activeCall = null;
+        state.incomingCall = null;
+        destroyPeerConnection();
+        resetConversationState();
+        updateComposerState();
+        updateCallButtons();
+      }
+
+      function resetConversationState() {
+        state.conversationId = null;
+        clearMessages();
+        updateComposerState();
+      }
+
+      function otherParticipant(call) {
+        if (!call || !state.me) return null;
+        return (call.participants || []).find((participant) => participant.userId !== state.me.id) || null;
+      }
+
+      function otherName(call) {
+        return otherParticipant(call)?.name || state.other?.name || 'the other user';
+      }
+
+      function otherExternalId(call) {
+        return otherParticipant(call)?.externalId || state.other?.externalId;
+      }
+
+      function joinActiveConversation() {
+        if (!state.socket || !state.conversationId) return;
+        state.socket.emit('join', state.conversationId);
+      }
+
+      function updateComposerState() {
+        const enabled = Boolean(state.me && state.other && state.conversationId);
+        el.messageInput.disabled = !enabled;
+        el.sendBtn.disabled = !enabled;
+      }
+
+      function renderMessage(message) {
+        const sentByCurrentUser =
+          message.senderExternalId
+            ? message.senderExternalId === state.me?.externalId
+            : message.sentByMe;
+        const existing = document.getElementById(`message-${message.id}`);
+        if (existing) {
+          existing.querySelector('.meta').textContent = `${new Date(message.createdAt).toLocaleTimeString()} - ${message.status}`;
+          return;
+        }
+        removeNotes();
+        const node = document.createElement('div');
+        node.id = `message-${message.id}`;
+        node.className = `message ${sentByCurrentUser ? 'sent' : 'received'}`;
+        node.innerHTML = `<div>${message.content || `[${message.mediaType || 'attachment'}]`}</div><div class="meta">${new Date(message.createdAt).toLocaleTimeString()} - ${message.status}</div>`;
+        el.messages.appendChild(node);
+        el.messages.scrollTop = el.messages.scrollHeight;
+      }
+
+      function applyCallSnapshot(call, detail) {
+        if (!call) {
+          endCallUi(null, detail || 'No active call.');
+          return;
+        }
+        if (TERMINAL_CALL_STATUSES.includes(call.status)) {
+          endCallUi(call, detail || `Call is ${call.status}.`);
+          return;
+        }
+        state.activeCall = call;
+        state.incomingCall =
+          call.status === 'ringing' && call.initiatorId !== state.me?.id ? call : null;
+        setCallState(getCallTitle(call), detail || describeCall(call));
+        updateCallButtons();
+      }
+
+      function handleTerminalCallEvent(call, detail) {
+        if (!call || !callInvolvesCurrentUser(call)) return;
+        if (isCompletedCall(call.id) && !state.activeCall) return;
+        endCallUi(call, detail);
+      }
+
+      function handleCallStateChanged(call) {
+        if (!call || !callInvolvesCurrentUser(call)) return;
+        if (TERMINAL_CALL_STATUSES.includes(call.status)) {
+          handleTerminalCallEvent(call, `Call state changed to ${call.status}.`);
+          return;
+        }
+        adoptTargetFromCall(call);
+        applyCallSnapshot(call, describeCall(call));
+      }
+
+      async function syncActiveCall() {
+        if (!state.key) return;
+        try {
+          const call = await apiGet('/calls/active');
+          if (!call) {
+            if (hasLiveCall()) {
+              endCallUi(state.activeCall, 'No active call was found after reconnect.');
+            }
+            return;
+          }
+          adoptTargetFromCall(call);
+          applyCallSnapshot(call, describeCall(call));
+        } catch (error) {
+          console.error('Active call sync failed', error);
         }
       }
 
-      // Initialize the app
-      init();
+      function endCallUi(call, detail) {
+        const completedCallId = call?.id || state.activeCall?.id || null;
+        if (completedCallId) {
+          state.lastCompletedCallId = completedCallId;
+        }
+        state.activeCall = null;
+        state.incomingCall = null;
+        destroyPeerConnection();
+        setCallState('Idle', detail || 'No active call.');
+        populateTargetSelect();
+        updateCallButtons();
+      }
+
+      function destroyPeerConnection() {
+        if (state.peer) state.peer.close();
+        if (state.localStream) state.localStream.getTracks().forEach((track) => track.stop());
+        state.peer = null;
+        state.localStream = null;
+        state.remoteStream = null;
+        state.pendingCandidates = [];
+        state.currentSignalTargetExternalId = null;
+        el.localAudio.srcObject = null;
+        el.remoteAudio.srcObject = null;
+        el.localVideo.srcObject = null;
+        el.remoteVideo.srcObject = null;
+        toggleVideoCards(false, false);
+      }
+
+      function adoptTargetFromCall(call) {
+        const participant = otherParticipant(call);
+        if (!participant) return;
+
+        let target =
+          state.availableTargets.find((entry) => entry.externalId === participant.externalId) ||
+          null;
+
+        if (!target) {
+          target = {
+            id: participant.userId,
+            externalId: participant.externalId,
+            name: participant.name,
+          };
+          state.availableTargets = [...state.availableTargets, target];
+        }
+
+        state.other = target;
+        populateTargetSelect();
+        updateHeader();
+      }
+
+      function getCallTitle(call) {
+        if (!call) return 'Idle';
+        if (call.status === 'accepted') return call.type === 'video' ? 'Live video call' : 'Live audio call';
+        if (call.status === 'ringing' && call.initiatorId === state.me?.id) {
+          return call.type === 'video' ? 'Outgoing video call' : 'Outgoing audio call';
+        }
+        if (call.status === 'ringing') return call.type === 'video' ? 'Incoming video call' : 'Incoming audio call';
+        return 'Call state';
+      }
+
+      function describeCall(call) {
+        if (!call) return 'No active call.';
+        if (call.status === 'accepted') return `Connected to ${otherName(call)} for a ${call.type} call.`;
+        if (call.status === 'ringing' && call.initiatorId === state.me?.id) {
+          return `Calling ${otherName(call)} with ${call.type}...`;
+        }
+        if (call.status === 'ringing') return `${otherName(call)} is calling you for a ${call.type} call.`;
+        return `Call is ${call.status}.`;
+      }
+
+      function updateCallButtons() {
+        const connected = Boolean(state.socket && state.socket.connected);
+        const canStartCall = Boolean(connected && state.other?.id && !state.activeCall);
+        el.audioCallBtn.disabled = !canStartCall;
+        el.videoCallBtn.disabled = !canStartCall;
+        el.acceptBtn.disabled = !state.incomingCall;
+        el.rejectBtn.disabled = !state.incomingCall;
+        el.hangupBtn.disabled = !state.activeCall;
+        el.targetSelect.disabled = !state.availableTargets.length || hasLiveCall();
+      }
+
+      function resetUi() {
+        state.activeCall = null;
+        state.incomingCall = null;
+        state.lastCompletedCallId = null;
+        destroyPeerConnection();
+        resetConversationState();
+        updateCallButtons();
+      }
+
+      function hasLiveCall() {
+        return Boolean(
+          state.activeCall && !TERMINAL_CALL_STATUSES.includes(state.activeCall.status),
+        );
+      }
+
+      function isCompletedCall(callId) {
+        return Boolean(callId && state.lastCompletedCallId === callId);
+      }
+
+      function callInvolvesCurrentUser(call) {
+        return Boolean(
+          state.me &&
+            call &&
+            Array.isArray(call.participants) &&
+            call.participants.some((participant) => participant.userId === state.me.id),
+        );
+      }
+
+      function emitRequest(event, payload) {
+        return new Promise((resolve, reject) => {
+          if (!state.socket) {
+            reject(new Error('Socket is not connected.'));
+            return;
+          }
+          const timer = setTimeout(() => {
+            reject(new Error(`Timed out waiting for ${event}`));
+          }, 8000);
+
+          state.socket.emit(event, payload, (response) => {
+            clearTimeout(timer);
+            if (response && response.error) {
+              reject(new Error(response.error));
+              return;
+            }
+            resolve(response);
+          });
+        });
+      }
+
+      async function apiGet(path) {
+        const response = await fetch(`${API_BASE}${path}`, {
+          headers: { Authorization: `Bearer ${TOKENS[state.key]}` },
+        });
+        if (!response.ok) throw new Error(`GET ${path} failed with ${response.status}`);
+        return response.json();
+      }
+
+      async function apiPost(path, body = {}) {
+        const response = await fetch(`${API_BASE}${path}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${TOKENS[state.key]}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) throw new Error(`POST ${path} failed with ${response.status}`);
+        return response.json();
+      }
     </script>
   </body>
 </html>

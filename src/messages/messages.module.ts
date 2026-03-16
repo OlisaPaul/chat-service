@@ -1,7 +1,6 @@
-import {config} from 'dotenv'
 import { BadRequestException, Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
@@ -14,52 +13,68 @@ import { Conversation } from '../entities/conversation.entity';
 import { ConversationParticipant } from '../entities/conversation-participant.entity';
 import { User } from '../entities/user.entity';
 import { ConversationsModule } from '../conversations/conversations.module';
-
-config()
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
+    ConfigModule,
+    AuthModule,
     TypeOrmModule.forFeature([Message, Conversation, ConversationParticipant, User]),
-    JwtModule.register({
-      secret: process.env.JWT_SHARED_SECRET,
-    }),
-    MulterModule.register({
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const uploadPath = '/home/assets/chat/uploads';
-          if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
-          cb(null, uploadPath);
+    MulterModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        storage: diskStorage({
+          destination: (req, file, cb) => {
+            const uploadPath =
+              configService.get<string>('uploads.path') ||
+              '/home/assets/chat/uploads';
+            if (!fs.existsSync(uploadPath)) {
+              fs.mkdirSync(uploadPath, { recursive: true });
+            }
+            cb(null, uploadPath);
+          },
+          filename: (req, file, cb) => {
+            const uniqueSuffix =
+              Date.now() + '-' + Math.round(Math.random() * 1e9);
+            const ext = path.extname(file.originalname);
+            cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+          },
+        }),
+        fileFilter: (req, file, cb) => {
+          const allowedTypes = [
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'video/mp4',
+            'video/webm',
+            'video/ogg',
+            'audio/mpeg',
+            'audio/wav',
+            'audio/ogg',
+            'audio/webm',
+            'audio/mp4',
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/msword',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/csv',
+          ];
+
+          if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+            return;
+          }
+
+          cb(new BadRequestException('File type not allowed'), false);
         },
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = path.extname(file.originalname);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        limits: {
+          fileSize:
+            configService.get<number>('uploads.maxFileSizeBytes') ||
+            50 * 1024 * 1024,
         },
       }),
-      fileFilter: (req, file, cb) => {
-        const allowedTypes = [
-          // Images
-          'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-          // Videos
-          'video/mp4', 'video/webm', 'video/ogg',
-          // Audio
-          'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/mp4',
-          // Documents
-          'application/pdf',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-          'application/msword', // .doc
-          'application/vnd.ms-excel', // .xls
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-          'text/csv'
-        ];
-
-        if (allowedTypes.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(new BadRequestException('File type not allowed'), false);
-        }
-      },
-      limits: { fileSize: 50 * 1024 * 1024 }, // limit: 50MB for videos
     }),
     ConversationsModule,
   ],

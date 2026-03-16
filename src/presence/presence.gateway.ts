@@ -1,4 +1,3 @@
-import { config } from 'dotenv';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -6,121 +5,84 @@ import {
   OnGatewayDisconnect,
   OnGatewayInit,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
+import { ConfigService } from '@nestjs/config';
 import { instrument } from '@socket.io/admin-ui';
+import { AuthIdentityService } from '../auth/auth-identity.service';
+import { PresenceStateService } from './presence-state.service';
+import { socketGatewayOptions } from '../common/socket-gateway-options';
 
-config();
-
-@WebSocketGateway({
-  cors: {
-    origin: ['*', 'https://admin.socket.io'], // allow admin UI
-    credentials: true,
-  },
-})
+@WebSocketGateway(socketGatewayOptions)
 export class PresenceGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
   @WebSocketServer() server: Server;
-  private onlineUsers = new Map<string, string>(); // socket.id -> externalId
-  private eventLog: any[] = []; // Store recent events for monitoring
+  private readonly logger = new Logger(PresenceGateway.name);
 
   constructor(
-    private jwtService: JwtService,
-    private usersService: UsersService,
+    private readonly authIdentityService: AuthIdentityService,
+    private readonly presenceStateService: PresenceStateService,
+    private readonly configService: ConfigService,
   ) {}
 
   afterInit(server: Server) {
-    // Configure Socket.IO Admin UI
+    if (!this.configService.get<boolean>('socketAdmin.enabled')) {
+      return;
+    }
+
     instrument(server, {
-      auth: false, // Disable auth for easier access during development
+      auth: this.configService.get<boolean>('socketAdmin.authEnabled')
+        ? {
+            type: 'basic',
+            username:
+              this.configService.get<string>('socketAdmin.username') ??
+              'admin',
+            password:
+              this.configService.get<string>('socketAdmin.password') ??
+              'admin123',
+          }
+        : false,
       namespaceName: '/admin',
       mode:
         process.env.NODE_ENV === 'production' ? 'production' : 'development',
       readonly: false,
       serverId: 'chat-service-admin',
     });
-
-    console.log('🔧 Socket.IO Admin UI configured at /admin');
-    console.log('🌐 Access at: http://localhost:3001/admin');
-    console.log('⚠️  Auth disabled for development - enable in production');
   }
 
   async handleConnection(socket: Socket) {
     try {
-      const token = socket.handshake.auth?.token;
-      if (!token) throw new Error('Missing token');
+      const { user } = await this.authIdentityService.authenticateSocket(socket);
 
-      const payload = this.jwtService.verify(token);
-      console.log({ payload });
-      const user = await this.usersService.findByExternalId(payload.sub);
+      socket.join(`user:${user.externalId}`);
+      const result = this.presenceStateService.markOnline(
+        socket.id,
+        user.externalId,
+        user.name,
+      );
 
-      if (!user) throw new Error('User not found');
-
-      this.onlineUsers.set(socket.id, user.externalId);
-
-      // Log event
-      this.logEvent('user_online', {
-        userId: user.externalId,
-        userName: user.name,
-      });
-
-      this.server.emit('user_status_changed', {
-        userId: user.externalId,
-        status: 'online',
-      });
-
-      console.log(`✅ ${user.name} is now online`);
-    } catch (err) {
-      console.log('❌ Presence connection failed:', err.message);
+      if (result.becameOnline) {
+        this.server.emit('user_status_changed', {
+          userId: user.externalId,
+          status: 'online',
+        });
+      }
+    } catch (error) {
+      this.logger.warn(`Socket authentication failed for ${socket.id}`);
       socket.disconnect();
     }
   }
 
   handleDisconnect(socket: Socket) {
-    const userId = this.onlineUsers.get(socket.id);
-    if (userId) {
-      this.onlineUsers.delete(socket.id);
-
-      // Log event
-      this.logEvent('user_offline', { userId });
-
-      this.server.emit('user_status_changed', { userId, status: 'offline' });
-      console.log(`⚠️ User ${userId} went offline`);
+    const result = this.presenceStateService.markOffline(socket.id);
+    if (!result || !result.becameOffline) {
+      return;
     }
-  }
 
-  getOnlineUserIds(): string[] {
-    return Array.from(new Set(this.onlineUsers.values()));
-  }
-
-  getOnlineUsersCount(): number {
-    return this.getOnlineUserIds().length;
-  }
-
-  getOnlineUsersDetails(): Array<{ socketId: string; userId: string }> {
-    return Array.from(this.onlineUsers.entries()).map(([socketId, userId]) => ({
-      socketId,
-      userId,
-    }));
-  }
-
-  getRecentEvents(limit: number = 50): any[] {
-    return this.eventLog.slice(-limit);
-  }
-
-  private logEvent(eventType: string, data: any) {
-    const event = {
-      timestamp: new Date().toISOString(),
-      eventType,
-      data,
-    };
-    this.eventLog.push(event);
-
-    // Keep only last 100 events
-    if (this.eventLog.length > 100) {
-      this.eventLog.shift();
-    }
+    this.server.emit('user_status_changed', {
+      userId: result.externalId,
+      status: 'offline',
+    });
   }
 }

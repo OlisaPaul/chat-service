@@ -1,20 +1,19 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { Module, forwardRef } from '@nestjs/common';
 import { PresenceGateway } from './presence.gateway';
 import { PresenceController } from './presence.controller';
 import { UsersModule } from '../users/users.module';
 import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from '../auth/auth.module';
+import { PresenceStateService } from './presence-state.service';
 
 @Module({
   imports: [
-    JwtModule.register({
-      secret: process.env.JWT_SHARED_SECRET,
-    }),
-    UsersModule,
     ConfigModule,
+    forwardRef(() => AuthModule),
+    forwardRef(() => UsersModule),
   ],
-  providers: [PresenceGateway],
+  providers: [PresenceGateway, PresenceStateService],
   controllers: [PresenceController],
-  exports: [PresenceGateway],
+  exports: [PresenceGateway, PresenceStateService],
 })
 export class PresenceModule {}

@@ -5,11 +5,11 @@ import { Message, MessageStatus } from './message.entity';
 import { Conversation } from '../entities/conversation.entity';
 import { User } from '../entities/user.entity';
 import { MessageResponseDto } from './dto/message-response.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import {
   getPaginatedData,
   getPaginationResponse,
-} from 'src/common/helper-functions/get-pagination-meta';
+} from '../common/helper-functions/get-pagination-meta';
 
 @Injectable()
 export class MessagesService {
@@ -107,19 +107,18 @@ export class MessagesService {
       .createQueryBuilder()
       .update(Message)
       .set({ status: MessageStatus.READ })
-      .where('conversation.id = :conversationId', { conversationId })
-      .andWhere('sender.id != :userId', { userId: user.id })
+      .where('conversationId = :conversationId', { conversationId })
+      .andWhere('senderId != :userId', { userId: user.id })
       .andWhere('status != :readStatus', { readStatus: MessageStatus.READ })
       .execute();
 
-    // Return updated messages for broadcasting
-    const updatedMessages = await this.messageRepo.find({
-      where: {
-        conversation: { id: conversationId },
-        sender: { id: user.id }, // Only return messages from current user that were marked as read
-      },
-      relations: ['sender'],
-    });
+    const updatedMessages = await this.messageRepo
+      .createQueryBuilder('message')
+      .leftJoinAndSelect('message.sender', 'sender')
+      .where('message.conversationId = :conversationId', { conversationId })
+      .andWhere('message.senderId != :userId', { userId: user.id })
+      .andWhere('message.status = :readStatus', { readStatus: MessageStatus.READ })
+      .getMany();
 
     return updatedMessages.map((m) => new MessageResponseDto(m, user));
   }

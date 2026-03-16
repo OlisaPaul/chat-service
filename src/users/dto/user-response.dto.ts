@@ -27,6 +27,13 @@ export class UserResponseDto {
   avatarUrl?: string;
 
   @ApiProperty({
+    description: 'User role',
+    required: false,
+    example: 'billable',
+  })
+  role?: string;
+
+  @ApiProperty({
     description: 'User creation timestamp',
     example: '2023-01-01T00:00:00.000Z',
   })

@@ -1,213 +1,174 @@
-# Chat Service - Multi-User Real-Time Chat Application
+# Chat Service
 
-A comprehensive real-time chat application built with NestJS, TypeORM, MySQL, and Socket.IO. Features JWT authentication, WebSocket communication, image uploads, and message status tracking.
+Self-hostable NestJS communication backend with:
 
-## 🚀 Features
+- realtime chat
+- presence tracking
+- file uploads
+- 1:1 audio calling
+- 1:1 video calling
+- a browser-based reference client served by the backend
 
-- **Real-time messaging** with WebSocket connections
-- **JWT authentication** for secure API access
-- **Image uploads** with file storage and serving
-- **Message status tracking** (sent, delivered, read)
-- **Conversation management** (private and group chats)
-- **User management** with external ID system
-- **Typing indicators** and read receipts
-- **Responsive web interface**
+The backend is the main product surface. The in-repo UI at [`/frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) is the supported reference client for validation and onboarding, not a polished production app.
 
-## 🏗️ Architecture
+## What Works Today
 
-### Backend (NestJS)
-- **Framework**: NestJS with TypeScript
-- **Database**: MySQL with TypeORM
-- **Authentication**: JWT with Passport
-- **File Upload**: Multer for image handling
-- **Real-time**: Socket.IO for WebSocket communication
-- **Validation**: class-validator and class-transformer
+- JWT-authenticated REST API under `/api/v1`
+- Socket.IO chat, presence, and call signaling
+- direct/private conversations
+- paginated message history and read state
+- uploads served from `/api/v1/assets/...`
+- persisted call sessions and call history
+- 1:1 audio/video calling through browser WebRTC signaling
 
-### Frontend (Vanilla JS)
-- **UI**: Responsive HTML/CSS/JavaScript
-- **Real-time**: Socket.IO client
-- **File Upload**: FormData API
-- **Authentication**: JWT tokens
+## Stack
 
-### Database Schema
-- **Users**: External ID system for multi-app support
-- **Conversations**: Many-to-many with participants
-- **Messages**: Text and image support with status tracking
-- **Conversation Participants**: Junction table for user-conversation relationships
+- NestJS
+- TypeORM
+- MySQL
+- Socket.IO
+- Multer
+- Browser WebRTC for audio/video media
 
-## 📋 Prerequisites
+## Quick Start: Local
 
-- Node.js 18+
-- MySQL 8.0+
-- npm or yarn
+1. Install dependencies:
 
-## 🔧 Socket.IO Admin Dashboard
-
-For real-time monitoring of socket connections and presence:
-
-1. **Access the dashboard:**
-   ```
-   http://localhost:3001/presence-monitor
-   ```
-
-2. **Login credentials:**
-   - Username: `admin` (configured via ADMIN_USERNAME env var)
-   - Password: `admin123` (configured via ADMIN_PASSWORD env var)
-
-3. **Features:**
-   - Real-time socket connection monitoring
-   - Active namespaces and rooms
-   - Online users tracking
-   - Recent events log
-   - Connection statistics
-
-## 🛠️ Installation
-
-1. **Clone and install dependencies:**
 ```bash
-git clone <repository-url>
-cd chat-service
 npm install
 ```
 
-2. **Environment Setup:**
+2. Create your local environment file:
+
 ```bash
-cp .env.example .env
+copy .env.example .env
 ```
 
-Edit `.env` with your configuration:
-```env
-PORT=3001
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASS=your_password
-MYSQL_DB=chatdb
-JWT_SHARED_SECRET=your_jwt_secret_here
+3. Keep the default `JWT_SHARED_SECRET` value if you want the built-in Alice/Bob demo users to work immediately.
 
-# Socket.IO Admin UI Configuration (Optional)
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+4. Create the MySQL database named in `MYSQL_DB`.
+
+5. Run migrations:
+
+```bash
+npm run migration:run
 ```
 
-3. **Database Setup:**
-```sql
-CREATE DATABASE chatdb;
-```
+6. Start the backend:
 
-4. **Start the application:**
 ```bash
 npm run start:dev
 ```
 
-The application will be available at `http://localhost:3001`
+7. Open the reference client:
 
-## 🔐 Authentication
-
-### JWT Token Generation
-The application uses JWT tokens for authentication. Sample tokens are pre-generated for testing:
-
-```javascript
-const jwt = require('jsonwebtoken');
-
-const token = jwt.sign(
-  { sub: 'appA:user123', name: 'John Doe' },
-  process.env.JWT_SHARED_SECRET,
-  { expiresIn: '7d' }
-);
+```text
+http://localhost:3001/frontend/index.html
 ```
 
-### Available Test Users
-- Alice (appA:alice)
-- Bob (appA:bob)
-- Charlie (appA:charlie)
-- David (appA:david)
-- Eve (appA:eve)
+## Quick Start: Docker
 
-## 📡 API Documentation
+1. Create your local environment file:
 
-See [API.md](API.md) for detailed endpoint documentation.
-
-## 🎨 Frontend Usage
-
-1. Open `http://localhost:3001` in your browser
-2. Select a user from the sidebar
-3. Click "New Chat" to start a conversation
-4. Send text messages or upload images using the 📎 button
-5. Messages appear in real-time for all participants
-
-### Key Features:
-- **Real-time updates**: Messages appear instantly
-- **Image sharing**: Click 📎 to upload and share images
-- **Read receipts**: See when messages are delivered and read
-- **Typing indicators**: See when others are typing
-- **Responsive design**: Works on desktop and mobile
-
-## 🔧 Development
-
-### Project Structure
-```
-chat-service/
-├── src/
-│   ├── app.controller.ts          # Main app controller
-│   ├── app.module.ts              # Root application module
-│   ├── app.service.ts             # Main app service
-│   ├── main.ts                    # Application entry point
-│   ├── auth/                      # Authentication module
-│   │   ├── jwt.strategy.ts        # JWT strategy
-│   │   ├── jwt.guard.ts          # JWT guard
-│   │   └── ws-jwt.guard.ts       # WebSocket JWT guard
-│   ├── entities/                  # Database entities
-│   │   ├── user.entity.ts         # User entity
-│   │   ├── conversation.entity.ts # Conversation entity
-│   │   └── message.entity.ts      # Message entity
-│   ├── conversations/             # Conversation management
-│   ├── messages/                  # Message handling
-│   │   ├── messages.controller.ts # REST endpoints
-│   │   ├── messages.service.ts    # Business logic
-│   │   ├── messages.gateway.ts    # WebSocket gateway
-│   │   └── messages.module.ts     # Messages module
-│   └── users/                     # User management
-├── frontend/
-│   └── index.html                 # Web interface
-├── test/                          # Test files
-└── uploads/                       # Uploaded files (created automatically)
-```
-
-### Key Technologies
-
-- **NestJS**: Progressive Node.js framework
-- **TypeORM**: TypeScript ORM for database operations
-- **Socket.IO**: Real-time bidirectional communication
-- **JWT**: JSON Web Tokens for authentication
-- **Multer**: Middleware for handling file uploads
-- **MySQL**: Relational database
-- **class-validator**: Validation decorators
-
-## 🚀 Deployment
-
-1. **Build the application:**
 ```bash
-npm run build
+copy .env.example .env
 ```
 
-2. **Start in production:**
+2. Start the app and MySQL:
+
 ```bash
-npm run start:prod
+npm run docker:up
 ```
 
-3. **Environment variables** must be set for production
-4. **Database** should be configured and accessible
-5. **File upload directory** (`/home/assets/chat/uploads`) must be writable
+3. Open the reference client:
 
-## 📝 Contributing
+```text
+http://localhost:3001/frontend/index.html
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+Docker notes:
 
-## 📄 License
+- the app runs migrations automatically on container startup
+- uploaded files are stored in `./storage/assets`
+- MySQL data is stored in the named volume `mysql_data`
 
-This project is licensed under the MIT License.
+## Reference Client Flow
+
+The supported validation path is:
+
+1. Open the reference client in two tabs.
+2. Select `Alice` in one tab and `Bob` in the other.
+3. Send a message to confirm realtime chat works.
+4. Start an audio or video call.
+5. Accept in the other tab.
+6. Confirm chat, call, and hang-up behavior.
+
+If you change `JWT_SHARED_SECRET`, the built-in Alice/Bob tokens in [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) will no longer authenticate.
+
+## Configuration
+
+Primary environment groups in [`.env.example`](C:\Users\DEEPIJA\Downloads\chat-service\.env.example):
+
+- app
+- database
+- auth
+- uploads and assets
+- feature flags
+- RTC
+- Socket.IO admin UI
+- dev tooling
+
+Important defaults:
+
+- `DB_SYNCHRONIZE=false`
+- `CORS_ORIGINS=http://localhost:3001,http://127.0.0.1:3001`
+- `UPLOAD_PATH=storage/assets/chat/uploads`
+- `ASSETS_PATH=storage/assets`
+- `SOCKET_ADMIN_ENABLED=false`
+
+Migrations are the supported schema path for self-host installs. Runtime schema sync is not the recommended default.
+
+## Dev Tunnel
+
+For temporary remote-device testing, you can expose the backend and reference client through ngrok:
+
+```bash
+npm run tunnel:dev
+```
+
+Requirements:
+
+- set `NGROK_AUTHTOKEN` in `.env` or your shell
+- keep the terminal running while testing
+
+The command prints a `Remote test URL` that points to `/frontend/index.html` through the ngrok tunnel.
+
+## Scripts
+
+- `npm run start:dev`
+- `npm run build`
+- `npm test -- --runInBand`
+- `npm run migration:run`
+- `npm run docker:up`
+- `npm run docker:down`
+- `npm run tunnel:dev`
+
+## Project Docs
+
+- [`API.md`](C:\Users\DEEPIJA\Downloads\chat-service\API.md): current REST and socket contract
+- [`Understanding This Codebase.md`](C:\Users\DEEPIJA\Downloads\chat-service\Understanding%20This%20Codebase.md): architecture and onboarding guide
+- [`CONTRIBUTING.md`](C:\Users\DEEPIJA\Downloads\chat-service\CONTRIBUTING.md): contributor workflow
+- [`DEPLOYMENT.md`](C:\Users\DEEPIJA\Downloads\chat-service\DEPLOYMENT.md): self-host guidance
+
+## Current Limits
+
+- 1:1 calls only
+- no recording
+- no group calling
+- no SFU/media-server integration
+- reference client is intentionally minimal
+- presence is still stored in-memory, so it is not yet designed for multi-instance deployments
+
+## License
+
+MIT. See [`LICENSE`](C:\Users\DEEPIJA\Downloads\chat-service\LICENSE).

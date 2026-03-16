@@ -1,0 +1,47 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DB:-chatdb}
+      MYSQL_USER: ${MYSQL_USER:-chatuser}
+      MYSQL_PASSWORD: ${MYSQL_PASS:-chatpass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      PORT: 3001
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      DB_SYNCHRONIZE: "false"
+      UPLOAD_PATH: /app/storage/assets/chat/uploads
+      ASSETS_PATH: /app/storage/assets
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./storage/assets:/app/storage/assets
+
+volumes:
+  mysql_data:

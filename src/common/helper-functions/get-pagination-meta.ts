@@ -22,10 +22,12 @@ export async function getPaginatedData<Entity extends ObjectLiteral>(
   paginationDto: PaginationDto,
   qb: SelectQueryBuilder<Entity>,
 ) {
-  const [data, total] = await qb.getManyAndCount();
   const { limit = 20, page = 1 } = paginationDto;
-
-  qb.skip((page - 1) * limit).take(limit);
+  const [data, total] = await qb
+    .clone()
+    .skip((page - 1) * limit)
+    .take(limit)
+    .getManyAndCount();
 
   return { data, total };
 }

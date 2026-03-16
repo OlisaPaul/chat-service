@@ -19,7 +19,7 @@ import { ConversationsService } from './conversations.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { User } from '../entities/user.entity';
 import { ConversationResponseDto } from './dto/conversation-response.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Conversations')
 @ApiBearerAuth('JWT-auth')
@@ -43,7 +43,7 @@ export class ConversationsController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async createPrivateConversation(
     @Request() req,
-    @Param('otherUserId') otherUserId: number,
+    @Param('otherUserId') otherUserId: string,
   ) {
     const currentUser = req.user as User;
     const conversation =

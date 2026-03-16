@@ -10,9 +10,9 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { PresenceGateway } from '../presence/presence.gateway';
+import { PresenceStateService } from '../presence/presence-state.service';
 import { UserResponseDto } from './dto/user-response.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -20,7 +20,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
-    private readonly presenceGateway: PresenceGateway,
+    private readonly presenceStateService: PresenceStateService,
   ) {}
 
   @Get('me')
@@ -61,7 +61,7 @@ export class UsersController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async getOnlineUsers(@Query() paginationDto: PaginationDto) {
-    const ids = this.presenceGateway.getOnlineUserIds();
+    const ids = this.presenceStateService.getOnlineUserIds();
     return this.usersService.findByExternalIds(ids, paginationDto);
   }
 }
