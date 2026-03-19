@@ -1,84 +1,57 @@
 import {
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Socket } from 'socket.io';
-import { User, UserRole } from '../entities/user.entity';
+import { User } from '../entities/user.entity';
 import { UsersService } from '../users/users.service';
-
-export interface NormalizedAuthProfile {
-  externalId: string;
-  name: string;
-  avatarUrl?: string;
-  role?: UserRole;
-  rawPayload: Record<string, unknown>;
-}
+import { AUTH_PROFILE_MAPPER, AUTH_TOKEN_VERIFIER } from './auth.constants';
+import type {
+  AuthProfileMapper,
+  AuthTokenVerifier,
+  NormalizedAuthProfile,
+} from './auth-provider.interfaces';
 
 @Injectable()
 export class AuthIdentityService {
   constructor(
-    private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    @Inject(AUTH_TOKEN_VERIFIER)
+    private readonly authTokenVerifier: AuthTokenVerifier,
+    @Inject(AUTH_PROFILE_MAPPER)
+    private readonly authProfileMapper: AuthProfileMapper,
   ) {}
 
   verifyToken(token: string) {
-    const secret = this.configService.get<string>('auth.jwtSecret');
-    return this.jwtService.verify<Record<string, unknown>>(token, { secret });
+    return this.authTokenVerifier.verify(token);
   }
 
   normalizePayload(payload: Record<string, unknown>): NormalizedAuthProfile {
-    const subjectClaim =
-      this.configService.get<string>('auth.claims.subject') ?? 'sub';
-    const nameClaim =
-      this.configService.get<string>('auth.claims.name') ?? 'name';
-    const avatarClaim =
-      this.configService.get<string>('auth.claims.avatarUrl') ?? 'avatarUrl';
-    const roleClaim =
-      this.configService.get<string>('auth.claims.role') ?? 'role';
-
-    const externalId = payload[subjectClaim];
-    const name = payload[nameClaim];
-
-    if (typeof externalId !== 'string' || !externalId.trim()) {
-      throw new UnauthorizedException(
-        `Missing or invalid auth subject claim: ${subjectClaim}`,
-      );
-    }
-
-    if (typeof name !== 'string' || !name.trim()) {
-      throw new UnauthorizedException(
-        `Missing or invalid auth name claim: ${nameClaim}`,
-      );
-    }
-
-    const avatarUrl =
-      typeof payload[avatarClaim] === 'string'
-        ? (payload[avatarClaim] as string)
-        : undefined;
-
-    const roleValue =
-      typeof payload[roleClaim] === 'string'
-        ? (payload[roleClaim] as string)
-        : undefined;
-
-    const role = roleValue && this.isUserRole(roleValue)
-      ? roleValue
-      : undefined;
-
-    return {
-      externalId,
-      name,
-      avatarUrl,
-      role,
-      rawPayload: payload,
-    };
+    return this.authProfileMapper.normalize(payload);
   }
 
   async resolveUserFromPayload(payload: Record<string, unknown>): Promise<User> {
     const profile = this.normalizePayload(payload);
+    const autoProvisionUsers =
+      this.configService.get<boolean>('auth.autoProvisionUsers') ?? true;
+
+    if (!autoProvisionUsers) {
+      const existingUser = await this.usersService.findByExternalId(
+        profile.externalId,
+      );
+
+      if (!existingUser) {
+        throw new UnauthorizedException(
+          `User ${profile.externalId} is not provisioned in this deployment`,
+        );
+      }
+
+      return existingUser;
+    }
+
     return this.usersService.upsertExternalUser(
       profile.externalId,
       profile.name,
@@ -113,9 +86,5 @@ export class AuthIdentityService {
     }
 
     throw new UnauthorizedException('Missing socket auth token');
-  }
-
-  private isUserRole(value: string): value is UserRole {
-    return Object.values(UserRole).includes(value as UserRole);
   }
 }

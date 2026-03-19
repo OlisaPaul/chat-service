@@ -33,8 +33,8 @@ export class PresenceController {
       },
     },
   })
-  getOnlineUsers() {
-    const users = this.presenceStateService.getOnlineUsersDetails();
+  async getOnlineUsers() {
+    const users = await this.presenceStateService.getOnlineUsersDetails();
     return {
       count: users.length,
       users,
@@ -55,11 +55,17 @@ export class PresenceController {
       },
     },
   })
-  getStats() {
+  async getStats() {
+    const [onlineUsersCount, users, recentEvents] = await Promise.all([
+      this.presenceStateService.getOnlineUsersCount(),
+      this.presenceStateService.getOnlineUsersDetails(),
+      this.presenceStateService.getRecentEvents(),
+    ]);
+
     return {
-      onlineUsersCount: this.presenceStateService.getOnlineUsersCount(),
-      totalSockets: this.presenceStateService.getOnlineUsersDetails().length,
-      recentEventsCount: this.presenceStateService.getRecentEvents().length,
+      onlineUsersCount,
+      totalSockets: users.length,
+      recentEventsCount: recentEvents.length,
     };
   }
 }

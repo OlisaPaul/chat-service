@@ -12,6 +12,7 @@ Optional for remote WebRTC testing:
 
 - STUN server
 - TURN server for broader real-world connectivity
+- Redis for multi-instance realtime behavior
 
 ## Local or VM Deployment
 
@@ -55,6 +56,12 @@ The compose setup:
 - serves the reference client from `/frontend/index.html`
 - stores uploads in `./storage/assets`
 
+Optional Redis profile:
+
+```bash
+docker compose --profile realtime up --build
+```
+
 ## Uploads and Assets
 
 The backend serves assets from:
@@ -86,13 +93,27 @@ For broader connectivity:
 
 The backend handles signaling and call lifecycle state. Media transport stays in browser WebRTC.
 
+## Multi-Instance Realtime
+
+For more than one backend instance:
+
+- set `REDIS_ENABLED=true`
+- configure `REDIS_URL` or `REDIS_HOST`/`REDIS_PORT`
+- ensure all instances share the same Redis deployment
+
+Redis-backed mode is used for:
+
+- presence state
+- cross-instance Socket.IO room broadcasts
+- chat/call signaling across app instances
+
 ## Production Hardening Notes
 
 - `SOCKET_ADMIN_ENABLED=false` is the recommended default outside local debugging.
 - `CORS_ORIGINS` should be set explicitly for any production-minded deployment.
 - Socket room joins are now validated against conversation membership.
 - Presence is tracked per socket in memory and only emits offline when a user's last socket disconnects.
-- Presence and active call state are still single-instance assumptions today; multi-instance scaling is a later phase.
+- When Redis-backed realtime mode is enabled, presence and socket fan-out work across instances.
 
 ## Reference Client
 

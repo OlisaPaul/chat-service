@@ -34,8 +34,10 @@ export default () => ({
     },
   },
   auth: {
+    provider: process.env.AUTH_PROVIDER || 'jwt',
     jwtSecret:
       process.env.JWT_SHARED_SECRET || process.env.JWT_SECRET || 'default-secret',
+    autoProvisionUsers: process.env.AUTH_AUTO_PROVISION_USERS !== 'false',
     claims: {
       subject: process.env.AUTH_SUB_CLAIM || 'sub',
       name: process.env.AUTH_NAME_CLAIM || 'name',
@@ -69,6 +71,18 @@ export default () => ({
     turnUsername: process.env.RTC_TURN_USERNAME || '',
     turnPassword: process.env.RTC_TURN_PASSWORD || '',
     iceTransportPolicy: process.env.RTC_ICE_TRANSPORT_POLICY || 'all',
+  },
+  realtime: {
+    redis: {
+      enabled:
+        process.env.REDIS_ENABLED === 'true' ||
+        Boolean(process.env.REDIS_URL) ||
+        Boolean(process.env.REDIS_HOST),
+      url: process.env.REDIS_URL || '',
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      password: process.env.REDIS_PASSWORD || '',
+    },
   },
   socketAdmin: {
     enabled: process.env.SOCKET_ADMIN_ENABLED === 'true',

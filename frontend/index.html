@@ -12,7 +12,9 @@
       .sidebar h1, .chat-header h2 { margin: 0 0 8px; }
       .section { margin-bottom: 20px; }
       .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .stack { display: grid; gap: 8px; }
       button, input, select { border-radius: 999px; border: 1px solid #cbd5e1; padding: 10px 14px; font-size: 14px; }
+      select[multiple] { border-radius: 16px; min-height: 96px; }
       button { cursor: pointer; font-weight: 700; }
       button:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
       .active { background: #2563eb; color: #fff; }
@@ -46,13 +48,14 @@
     <div class="app">
       <aside class="panel sidebar">
         <h1>Reference Demo</h1>
-        <p class="meta">Chat plus 1:1 audio and video calling against the current backend.</p>
+        <p class="meta">Direct chat and calling, plus named group conversations, against the current backend.</p>
 
         <div class="section">
           <strong>Choose user</strong>
           <div class="row" style="margin-top:8px">
             <button id="alice-btn" data-user="alice">Alice</button>
             <button id="bob-btn" data-user="bob">Bob</button>
+            <button id="charlie-btn" data-user="charlie">Charlie</button>
           </div>
         </div>
 
@@ -65,13 +68,43 @@
         </div>
 
         <div class="section">
-          <strong>Choose target</strong>
-          <div class="row" style="margin-top:8px">
-            <select id="target-select" disabled style="flex:1; min-width: 0; border-radius: 16px; padding: 10px 14px;">
+          <strong>Direct chat</strong>
+          <div class="stack" style="margin-top:8px">
+            <select id="target-select" disabled style="border-radius: 16px;">
               <option value="">Select a user</option>
             </select>
+            <button class="secondary" id="open-direct-btn" disabled>Open direct chat</button>
           </div>
           <p class="meta" id="target-detail" style="margin:8px 0 0">Pick who this session should message and call.</p>
+        </div>
+
+        <div class="section">
+          <strong>Create group</strong>
+          <div class="stack" style="margin-top:8px">
+            <input id="group-name-input" placeholder="Group name" disabled />
+            <select id="group-create-members" multiple disabled></select>
+            <button class="primary" id="create-group-btn" disabled>Create group</button>
+          </div>
+          <p class="meta" id="group-create-detail" style="margin:8px 0 0">Select one or more members to create a named group conversation.</p>
+        </div>
+
+        <div class="section">
+          <strong>Groups</strong>
+          <div class="stack" style="margin-top:8px">
+            <select id="group-select" disabled style="border-radius: 16px;">
+              <option value="">Select a group</option>
+            </select>
+            <select id="group-add-members" multiple disabled></select>
+            <div class="row">
+              <button class="secondary" id="add-group-members-btn" disabled>Add members</button>
+              <button class="danger" id="leave-group-btn" disabled>Leave group</button>
+            </div>
+            <select id="group-members-select" disabled style="border-radius: 16px;">
+              <option value="">Select a member</option>
+            </select>
+            <button class="danger" id="remove-group-member-btn" disabled>Remove member</button>
+          </div>
+          <p class="meta" id="group-detail" style="margin:8px 0 0">Create or select a group to manage members and send messages.</p>
         </div>
 
         <div class="section">
@@ -106,7 +139,7 @@
         <div class="chat-header">
           <div>
             <h2 id="chat-title">Select a user</h2>
-            <div class="meta" id="chat-subtitle">The demo will load a direct conversation and connect sockets.</div>
+            <div class="meta" id="chat-subtitle">The demo will load a direct chat, group chat, or active private call context.</div>
           </div>
           <div class="pill disconnected" id="connection-pill">Disconnected</div>
         </div>
@@ -137,13 +170,26 @@
       const TOKENS = {
         alice: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmFsaWNlIiwibmFtZSI6IkFsaWNlIiwiaWF0IjoxNzczMzkwNzE2LCJleHAiOjIwODg3NTA3MTZ9.0O6NTGl5oITgdjEcda14rnHYyCMLYx_l4aC2Hg1CzNM',
         bob: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmJvYiIsIm5hbWUiOiJCb2IiLCJpYXQiOjE3NzMzOTA3MTYsImV4cCI6MjA4ODc1MDcxNn0.CYCxFDEoibir79ZGn_H1ZoAfOGb6iyTO7EvbH028WXQ',
+        charlie: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhcHBBOmNoYXJsaWUiLCJuYW1lIjoiQ2hhcmxpZSIsImlhdCI6MTc3Mzc4MTM4MSwiZXhwIjoyMDg5MzU3MzgxfQ.O62rCloMe5STxhARweRY-k5aJZilfslEXLPSE_B03p4',
       };
       const TERMINAL_CALL_STATUSES = ['rejected', 'cancelled', 'ended', 'missed', 'failed'];
 
       const state = {
-        key: null, me: null, other: null, socket: null, conversationId: null, typingTimeout: null,
-        activeCall: null, incomingCall: null, rtcConfig: null, peer: null, localStream: null, remoteStream: null, pendingCandidates: [],
+        key: null,
+        me: null,
+        other: null,
+        socket: null,
+        activeConversation: null,
+        typingTimeout: null,
+        activeCall: null,
+        incomingCall: null,
+        rtcConfig: null,
+        peer: null,
+        localStream: null,
+        remoteStream: null,
+        pendingCandidates: [],
         availableTargets: [],
+        groups: [],
         currentSignalTargetExternalId: null,
         lastCompletedCallId: null,
       };
@@ -151,10 +197,23 @@
       const el = {
         aliceBtn: document.getElementById('alice-btn'),
         bobBtn: document.getElementById('bob-btn'),
+        charlieBtn: document.getElementById('charlie-btn'),
         sessionName: document.getElementById('session-name'),
         sessionDetail: document.getElementById('session-detail'),
         targetSelect: document.getElementById('target-select'),
+        openDirectBtn: document.getElementById('open-direct-btn'),
         targetDetail: document.getElementById('target-detail'),
+        groupNameInput: document.getElementById('group-name-input'),
+        groupCreateMembers: document.getElementById('group-create-members'),
+        createGroupBtn: document.getElementById('create-group-btn'),
+        groupCreateDetail: document.getElementById('group-create-detail'),
+        groupSelect: document.getElementById('group-select'),
+        groupAddMembers: document.getElementById('group-add-members'),
+        addGroupMembersBtn: document.getElementById('add-group-members-btn'),
+        leaveGroupBtn: document.getElementById('leave-group-btn'),
+        groupMembersSelect: document.getElementById('group-members-select'),
+        removeGroupMemberBtn: document.getElementById('remove-group-member-btn'),
+        groupDetail: document.getElementById('group-detail'),
         chatTitle: document.getElementById('chat-title'),
         chatSubtitle: document.getElementById('chat-subtitle'),
         connectionPill: document.getElementById('connection-pill'),
@@ -181,7 +240,18 @@
       function init() {
         el.aliceBtn.onclick = () => selectUser('alice');
         el.bobBtn.onclick = () => selectUser('bob');
+        el.charlieBtn.onclick = () => selectUser('charlie');
         el.targetSelect.onchange = changeTarget;
+        el.openDirectBtn.onclick = openDirectConversation;
+        el.groupNameInput.oninput = updateReferenceControls;
+        el.groupCreateMembers.onchange = updateReferenceControls;
+        el.groupAddMembers.onchange = updateReferenceControls;
+        el.groupMembersSelect.onchange = updateReferenceControls;
+        el.createGroupBtn.onclick = createGroupConversation;
+        el.groupSelect.onchange = changeGroupConversation;
+        el.addGroupMembersBtn.onclick = addGroupMembers;
+        el.removeGroupMemberBtn.onclick = removeSelectedGroupMember;
+        el.leaveGroupBtn.onclick = leaveGroupConversation;
         el.sendBtn.onclick = sendMessage;
         el.messageInput.onkeypress = (event) => {
           if (event.key === 'Enter') {
@@ -207,33 +277,37 @@
         try {
           state.me = await apiGet('/auth/me');
           await loadTargetUsers();
+          await refreshGroupConversations();
           state.rtcConfig = await apiGet('/calls/rtc-config');
           updateHeader();
           connectSocket();
-          await createConversation();
-          await loadMessages();
-          updateComposerState();
-          updateCallButtons();
+          await openDirectConversation();
         } catch (error) {
           console.error(error);
           el.sessionName.textContent = 'Connection failed';
           el.sessionDetail.textContent = error.message || 'Unable to initialize the selected user.';
-          updateComposerState();
+          updateReferenceControls();
         }
       }
 
       async function loadTargetUsers() {
         const response = await apiGet('/users');
-        const users = response.data || [];
+        const users = asList(response);
         state.availableTargets = users.filter((user) => user.externalId !== state.me.externalId);
 
-        const preferredExternalId = state.key === 'alice' ? 'appA:bob' : 'appA:alice';
+        const preferredExternalId =
+          state.key === 'alice'
+            ? 'appA:bob'
+            : state.key === 'bob'
+              ? 'appA:alice'
+              : 'appA:alice';
         state.other =
           state.availableTargets.find((user) => user.externalId === preferredExternalId) ||
           state.availableTargets[0] ||
           null;
 
         populateTargetSelect();
+        populateGroupCreateMembers();
       }
 
       function populateTargetSelect() {
@@ -259,8 +333,144 @@
 
         el.targetSelect.disabled = hasLiveCall();
         el.targetDetail.textContent = state.other
-          ? `Current target: ${state.other.name}`
+          ? `Current direct target: ${state.other.name}`
           : 'Pick who this session should message and call.';
+      }
+
+      function populateGroupCreateMembers() {
+        el.groupCreateMembers.innerHTML = '';
+
+        if (!state.availableTargets.length) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'No users available';
+          el.groupCreateMembers.appendChild(option);
+          el.groupCreateMembers.disabled = true;
+          return;
+        }
+
+        state.availableTargets.forEach((user) => {
+          const option = document.createElement('option');
+          option.value = user.externalId;
+          option.textContent = `${user.name} (${user.externalId})`;
+          el.groupCreateMembers.appendChild(option);
+        });
+        el.groupCreateMembers.disabled = hasLiveCall();
+      }
+
+      async function refreshGroupConversations() {
+        if (!state.me) return;
+        const response = await apiGet('/conversations?limit=100');
+        state.groups = asList(response).filter((conversation) => conversation.type === 'group');
+
+        if (state.activeConversation?.type === 'group' && state.activeConversation.id) {
+          state.activeConversation =
+            state.groups.find((conversation) => conversation.id === state.activeConversation.id) ||
+            null;
+        }
+
+        populateGroupSelect();
+        populateGroupManagement();
+      }
+
+      function populateGroupSelect() {
+        const currentGroupId =
+          state.activeConversation?.type === 'group'
+            ? String(state.activeConversation.id)
+            : '';
+
+        el.groupSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = state.groups.length ? 'Select a group' : 'No groups yet';
+        el.groupSelect.appendChild(placeholder);
+
+        state.groups.forEach((conversation) => {
+          const option = document.createElement('option');
+          option.value = String(conversation.id);
+          option.textContent = `${conversation.name} (${conversation.participants.length} members)`;
+          option.selected = option.value === currentGroupId;
+          el.groupSelect.appendChild(option);
+        });
+
+        el.groupSelect.disabled = !state.groups.length || hasLiveCall();
+      }
+
+      function populateGroupManagement() {
+        const activeGroup = getActiveGroup();
+        const currentParticipant = getCurrentGroupParticipant();
+        const isAdmin = currentParticipant?.role === 'admin';
+
+        el.groupAddMembers.innerHTML = '';
+        el.groupMembersSelect.innerHTML = '';
+
+        if (!activeGroup) {
+          const emptyAdd = document.createElement('option');
+          emptyAdd.value = '';
+          emptyAdd.textContent = 'Select a group first';
+          el.groupAddMembers.appendChild(emptyAdd);
+
+          const emptyMember = document.createElement('option');
+          emptyMember.value = '';
+          emptyMember.textContent = 'Select a group first';
+          el.groupMembersSelect.appendChild(emptyMember);
+
+          el.groupAddMembers.disabled = true;
+          el.groupMembersSelect.disabled = true;
+          el.addGroupMembersBtn.disabled = true;
+          el.removeGroupMemberBtn.disabled = true;
+          el.leaveGroupBtn.disabled = true;
+          el.groupDetail.textContent = 'Create or select a group to manage members and send messages.';
+          return;
+        }
+
+        const existingExternalIds = new Set(
+          activeGroup.participants.map((participant) => participant.externalId),
+        );
+        const addableUsers = state.availableTargets.filter(
+          (user) => !existingExternalIds.has(user.externalId),
+        );
+        if (!addableUsers.length) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'No additional users available';
+          el.groupAddMembers.appendChild(option);
+        } else {
+          addableUsers.forEach((user) => {
+            const option = document.createElement('option');
+            option.value = user.externalId;
+            option.textContent = `${user.name} (${user.externalId})`;
+            el.groupAddMembers.appendChild(option);
+          });
+        }
+
+        const removableParticipants = activeGroup.participants.filter(
+          (participant) => participant.role !== 'admin',
+        );
+        if (!removableParticipants.length) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'No removable members';
+          el.groupMembersSelect.appendChild(option);
+        } else {
+          removableParticipants.forEach((participant) => {
+            const option = document.createElement('option');
+            option.value = participant.externalId;
+            option.textContent = `${participant.name} (${participant.role})`;
+            el.groupMembersSelect.appendChild(option);
+          });
+        }
+
+        el.groupAddMembers.disabled = !isAdmin || !addableUsers.length || hasLiveCall();
+        el.groupMembersSelect.disabled =
+          !isAdmin || !removableParticipants.length || hasLiveCall();
+        el.addGroupMembersBtn.disabled = el.groupAddMembers.disabled;
+        el.removeGroupMemberBtn.disabled = el.groupMembersSelect.disabled;
+        el.leaveGroupBtn.disabled = currentParticipant?.role === 'admin' || hasLiveCall();
+
+        el.groupDetail.textContent = isAdmin
+          ? `Group "${activeGroup.name}" is active. You can add or remove members as the admin.`
+          : `Group "${activeGroup.name}" is active. Members can chat, and admins manage membership.`;
       }
 
       async function changeTarget() {
@@ -268,20 +478,132 @@
         state.other =
           state.availableTargets.find((user) => user.externalId === nextExternalId) || null;
 
-        resetConversationState();
         updateHeader();
 
         if (!state.other || hasLiveCall()) {
-          populateTargetSelect();
-          updateComposerState();
-          updateCallButtons();
+          updateReferenceControls();
           return;
         }
 
-        await createConversation();
-        await loadMessages();
-        updateComposerState();
-        updateCallButtons();
+        await ensurePrivateConversation(state.other.externalId, true);
+      }
+
+      async function openDirectConversation() {
+        if (!state.other?.externalId || hasLiveCall()) return;
+        await ensurePrivateConversation(state.other.externalId, true);
+      }
+
+      async function createGroupConversation() {
+        const name = el.groupNameInput.value.trim();
+        const participantIds = getSelectedValues(el.groupCreateMembers);
+        if (!name || !participantIds.length) {
+          setCallState('Group setup', 'A group name and at least one member are required.');
+          return;
+        }
+
+        try {
+          const conversation = await apiPost('/conversations/group', {
+            name,
+            participantIds,
+          });
+          el.groupNameInput.value = '';
+          clearSelectedOptions(el.groupCreateMembers);
+          await refreshGroupConversations();
+          setActiveConversation(conversation);
+          await loadMessages();
+        } catch (error) {
+          console.error(error);
+          setCallState(
+            'Group setup',
+            error.message || 'Unable to create the group conversation.',
+          );
+        }
+      }
+
+      async function changeGroupConversation() {
+        const groupId = Number(el.groupSelect.value);
+        if (!groupId) {
+          updateReferenceControls();
+          return;
+        }
+
+        try {
+          const conversation = await apiGet(`/conversations/${groupId}`);
+          setActiveConversation(conversation);
+          await loadMessages();
+        } catch (error) {
+          console.error(error);
+          setCallState('Group setup', error.message || 'Unable to load the selected group.');
+        }
+      }
+
+      async function addGroupMembers() {
+        const activeGroup = getActiveGroup();
+        if (!activeGroup) return;
+
+        const participantIds = getSelectedValues(el.groupAddMembers);
+        if (!participantIds.length) {
+          setCallState('Group setup', 'Select at least one member to add.');
+          return;
+        }
+
+        try {
+          const conversation = await apiPost(`/conversations/${activeGroup.id}/members`, {
+            participantIds,
+          });
+          clearSelectedOptions(el.groupAddMembers);
+          await refreshGroupConversations();
+          setActiveConversation(conversation);
+        } catch (error) {
+          console.error(error);
+          setCallState(
+            'Group setup',
+            error.message || 'Unable to add the selected members.',
+          );
+        }
+      }
+
+      async function removeSelectedGroupMember() {
+        const activeGroup = getActiveGroup();
+        const participantExternalId = el.groupMembersSelect.value;
+        if (!activeGroup || !participantExternalId) {
+          setCallState('Group setup', 'Select a removable group member first.');
+          return;
+        }
+
+        try {
+          const conversation = await apiDelete(
+            `/conversations/${activeGroup.id}/members/${encodeURIComponent(participantExternalId)}`,
+          );
+          await refreshGroupConversations();
+          setActiveConversation(conversation);
+        } catch (error) {
+          console.error(error);
+          setCallState(
+            'Group setup',
+            error.message || 'Unable to remove the selected member.',
+          );
+        }
+      }
+
+      async function leaveGroupConversation() {
+        const activeGroup = getActiveGroup();
+        if (!activeGroup) return;
+
+        try {
+          await apiPost(`/conversations/${activeGroup.id}/leave`);
+          state.activeConversation = null;
+          await refreshGroupConversations();
+          if (state.other?.externalId) {
+            await ensurePrivateConversation(state.other.externalId, true);
+          } else {
+            resetConversationState();
+            updateReferenceControls();
+          }
+        } catch (error) {
+          console.error(error);
+          setCallState('Group setup', error.message || 'Unable to leave the active group.');
+        }
       }
 
       function connectSocket() {
@@ -296,14 +618,14 @@
           joinActiveConversation();
           await refreshPresence();
           await syncActiveCall();
-          updateCallButtons();
+          updateReferenceControls();
         });
         state.socket.on('disconnect', () => {
           setConnection(false);
           if (hasLiveCall()) {
             setCallState('Reconnecting call', 'Socket disconnected. Rechecking active call state.');
           }
-          updateCallButtons();
+          updateReferenceControls();
         });
         state.socket.on('connect_error', (error) => {
           setCallState('Call issue', error.message || 'Socket connection failed.');
@@ -311,40 +633,47 @@
         state.socket.on('new_message', renderMessage);
         state.socket.on('user_typing', renderTyping);
         state.socket.on('user_status_changed', refreshPresence);
-        state.socket.on('incoming_call', handleIncomingCall);
-        state.socket.on('call_answered', handleAnsweredCall);
-        state.socket.on('call_rejected', (call) => handleTerminalCallEvent(call, `${otherName(call)} rejected the call.`));
-        state.socket.on('call_cancelled', (call) => handleTerminalCallEvent(call, 'The caller cancelled the call.'));
-        state.socket.on('call_ended', (call) => handleTerminalCallEvent(call, 'The call ended.'));
-        state.socket.on('call_state_changed', handleCallStateChanged);
-        state.socket.on('webrtc_offer', handleOffer);
-        state.socket.on('webrtc_answer', handleAnswer);
-        state.socket.on('ice_candidate', handleIceCandidate);
+        state.socket.on('incoming_call', (call) => void handleIncomingCall(call));
+        state.socket.on('call_answered', (call) => void handleAnsweredCall(call));
+        state.socket.on('call_rejected', (call) => void handleTerminalCallEvent(call, `${otherName(call)} rejected the call.`));
+        state.socket.on('call_cancelled', (call) => void handleTerminalCallEvent(call, 'The caller cancelled the call.'));
+        state.socket.on('call_ended', (call) => void handleTerminalCallEvent(call, 'The call ended.'));
+        state.socket.on('call_state_changed', (call) => void handleCallStateChanged(call));
+        state.socket.on('webrtc_offer', (payload) => void handleOffer(payload));
+        state.socket.on('webrtc_answer', (payload) => void handleAnswer(payload));
+        state.socket.on('ice_candidate', (payload) => void handleIceCandidate(payload));
       }
 
-      async function createConversation() {
-        if (!state.other?.externalId) {
-          state.conversationId = null;
-          updateComposerState();
+      async function ensurePrivateConversation(targetExternalId, shouldLoadMessages = false) {
+        if (!targetExternalId) {
+          resetConversationState();
+          updateReferenceControls();
           return;
         }
-        const conversation = await apiPost(`/conversations/private/${encodeURIComponent(state.other.externalId)}`);
-        state.conversationId = conversation.id;
-        joinActiveConversation();
-        updateComposerState();
+        const conversation = await apiPost(
+          `/conversations/private/${encodeURIComponent(targetExternalId)}`,
+        );
+        setActiveConversation(conversation);
+        if (shouldLoadMessages) {
+          await loadMessages();
+        }
       }
 
       async function loadMessages() {
-        if (!state.conversationId) {
+        if (!state.activeConversation?.id) {
           clearMessages();
-          addNote('Choose a target user to load or create a direct conversation.');
+          addNote('Select a direct chat or group conversation to load messages.');
           return;
         }
-        const response = await apiGet(`/messages/${state.conversationId}`);
-        const messages = (response.data || []).slice().reverse();
+        const response = await apiGet(`/messages/${state.activeConversation.id}?page=1&limit=50`);
+        const messages = asList(response).slice().reverse();
         clearMessages();
         if (!messages.length) {
-          addNote('Conversation ready. Send a message or place an audio call.');
+          addNote(
+            state.activeConversation.type === 'group'
+              ? 'Group ready. Send a message to start the conversation.'
+              : 'Direct conversation ready. Send a message or start a call.',
+          );
           return;
         }
         messages.forEach(renderMessage);
@@ -352,14 +681,17 @@
 
       async function sendMessage() {
         const content = el.messageInput.value.trim();
-        if (!content || !state.socket || !state.conversationId) return;
-        state.socket.emit('send_message', { conversationId: state.conversationId, content });
+        if (!content || !state.socket || !state.activeConversation?.id) return;
+        state.socket.emit('send_message', {
+          conversationId: state.activeConversation.id,
+          content,
+        });
         el.messageInput.value = '';
         stopTyping();
       }
 
       async function startCall(type) {
-        if (!state.socket || !state.other?.id) return;
+        if (!state.socket || !state.other?.id || state.activeConversation?.type !== 'private') return;
         try {
           await ensureLocalMedia(type);
           const call = await emitRequest('start_call', {
@@ -391,7 +723,7 @@
         if (!state.incomingCall) return;
         try {
           const call = await emitRequest('reject_call', { callId: state.incomingCall.id });
-          handleTerminalCallEvent(call, `Rejected ${otherName(call)}.`);
+          await handleTerminalCallEvent(call, `Rejected ${otherName(call)}.`);
         } catch (error) {
           console.error(error);
           setCallState('Call issue', error.message || 'Unable to reject the call.');
@@ -403,7 +735,7 @@
         try {
           const event = state.activeCall.status === 'ringing' && state.activeCall.initiatorId === state.me.id ? 'cancel_call' : 'end_call';
           const call = await emitRequest(event, { callId: state.activeCall.id });
-          handleTerminalCallEvent(call, 'You left the call.');
+          await handleTerminalCallEvent(call, 'You left the call.');
         } catch (error) {
           console.error(error);
           setCallState('Call issue', error.message || 'Unable to end the call.');
@@ -413,7 +745,7 @@
       async function handleIncomingCall(call) {
         if (!state.me) return;
         if (isCompletedCall(call.id)) return;
-        adoptTargetFromCall(call);
+        await adoptTargetFromCall(call);
         if (call.initiatorId === state.me.id) {
           applyCallSnapshot(call, `Calling ${otherName(call)} with ${call.type}...`);
         } else {
@@ -422,7 +754,7 @@
       }
 
       async function handleAnsweredCall(call) {
-        adoptTargetFromCall(call);
+        await adoptTargetFromCall(call);
         applyCallSnapshot(call, `Connected to ${otherName(call)} for a ${call.type} call.`);
         await ensureLocalMedia(call.type);
         await ensurePeerConnection(otherExternalId(call), call.type);
@@ -529,7 +861,7 @@
                 `${(state.activeCall?.type || callType) === 'video' ? 'Video' : 'Audio'} connected to ${otherName(state.activeCall)}.`,
               );
             }
-            updateCallButtons();
+            updateReferenceControls();
           }
           if (['failed', 'disconnected'].includes(state.peer.connectionState)) {
             setCallState(
@@ -606,14 +938,16 @@
       }
 
       function handleTyping() {
-        if (!state.socket || !state.conversationId) return;
-        state.socket.emit('typing_start', state.conversationId);
+        if (!state.socket || !state.activeConversation?.id) return;
+        state.socket.emit('typing_start', state.activeConversation.id);
         clearTimeout(state.typingTimeout);
         state.typingTimeout = setTimeout(stopTyping, 1000);
       }
 
       function stopTyping() {
-        if (state.socket && state.conversationId) state.socket.emit('typing_stop', state.conversationId);
+        if (state.socket && state.activeConversation?.id) {
+          state.socket.emit('typing_stop', state.activeConversation.id);
+        }
         clearTimeout(state.typingTimeout);
         state.typingTimeout = null;
       }
@@ -622,9 +956,10 @@
         if (!state.key) return;
         try {
           const response = await apiGet('/users/online');
-          const online = new Set((response.data || []).map((user) => user.externalId));
+          const online = new Set(asList(response).map((user) => user.externalId));
           updatePresenceButton(el.aliceBtn, online.has('appA:alice'));
           updatePresenceButton(el.bobBtn, online.has('appA:bob'));
+          updatePresenceButton(el.charlieBtn, online.has('appA:charlie'));
         } catch (error) {
           console.error('Presence refresh failed', error);
         }
@@ -653,7 +988,11 @@
       function renderTyping(payload) {
         const existing = document.getElementById('typing-note');
         if (existing) existing.remove();
-        if (!payload.isTyping || payload.userId === state.me?.externalId) return;
+        if (
+          !payload.isTyping ||
+          payload.userId === state.me?.externalId ||
+          payload.conversationId !== state.activeConversation?.id
+        ) return;
         const note = document.createElement('div');
         note.id = 'typing-note';
         note.className = 'note';
@@ -682,15 +1021,39 @@
       }
 
       function updateHeader() {
-        el.sessionName.textContent = state.me.name;
-        el.sessionDetail.textContent = `External ID: ${state.me.externalId}`;
+        el.sessionName.textContent = state.me?.name || 'No user selected';
+        el.sessionDetail.textContent = state.me
+          ? `External ID: ${state.me.externalId}`
+          : 'Select Alice or Bob to connect.';
+        el.targetDetail.textContent = state.other
+          ? `Current direct target: ${state.other.name} (${state.other.externalId})`
+          : 'Pick who this session should message and call.';
+
+        if (!state.me) {
+          el.chatTitle.textContent = 'Select a user';
+          el.chatSubtitle.textContent =
+            'The demo will load a direct chat, group chat, or active private call context.';
+          return;
+        }
+
+        if (!state.activeConversation) {
+          el.chatTitle.textContent = `Chat as ${state.me.name}`;
+          el.chatSubtitle.textContent = state.other?.name
+            ? `Choose how to message ${state.other.name}: direct chat or a named group.`
+            : 'No direct target is available yet.';
+          return;
+        }
+
+        if (state.activeConversation.type === 'group') {
+          el.chatTitle.textContent = state.activeConversation.name || 'Group chat';
+          el.chatSubtitle.textContent = `Group conversation with ${state.activeConversation.participants.length} participants.`;
+          return;
+        }
+
         el.chatTitle.textContent = `Chat as ${state.me.name}`;
         el.chatSubtitle.textContent = state.other?.name
           ? `Direct conversation target: ${state.other.name}`
-          : 'The other demo user has not been created yet.';
-        el.targetDetail.textContent = state.other
-          ? `Current target: ${state.other.name} (${state.other.externalId})`
-          : 'Pick who this session should message and call.';
+          : 'Direct conversation active.';
       }
 
       function updateCallButtonsLegacy() {
@@ -712,7 +1075,7 @@
       }
 
       function setActiveUserButton() {
-        [el.aliceBtn, el.bobBtn].forEach((button) => {
+        [el.aliceBtn, el.bobBtn, el.charlieBtn].forEach((button) => {
           button.classList.toggle('active', button.dataset.user === state.key);
         });
       }
@@ -743,9 +1106,8 @@
       }
 
       function resetConversationState() {
-        state.conversationId = null;
+        state.activeConversation = null;
         clearMessages();
-        updateComposerState();
       }
 
       function otherParticipant(call) {
@@ -761,18 +1123,66 @@
         return otherParticipant(call)?.externalId || state.other?.externalId;
       }
 
+      function getActiveGroup() {
+        return state.activeConversation?.type === 'group' ? state.activeConversation : null;
+      }
+
+      function getCurrentGroupParticipant() {
+        const activeGroup = getActiveGroup();
+        if (!activeGroup || !state.me) return null;
+        return activeGroup.participants.find(
+          (participant) =>
+            participant.externalId === state.me.externalId ||
+            participant.id === state.me.id,
+        );
+      }
+
+      function setActiveConversation(conversation) {
+        state.activeConversation = conversation;
+        if (conversation?.type === 'private') {
+          const participant = (conversation.participants || []).find(
+            (entry) => entry.externalId !== state.me?.externalId,
+          );
+          if (participant) {
+            let target =
+              state.availableTargets.find(
+                (entry) => entry.externalId === participant.externalId,
+              ) || null;
+            if (!target) {
+              target = {
+                id: participant.id,
+                externalId: participant.externalId,
+                name: participant.name,
+                avatarUrl: participant.avatarUrl,
+              };
+              state.availableTargets = [...state.availableTargets, target];
+            }
+            state.other = target;
+          }
+        }
+        joinActiveConversation();
+        updateReferenceControls();
+      }
+
       function joinActiveConversation() {
-        if (!state.socket || !state.conversationId) return;
-        state.socket.emit('join', state.conversationId);
+        if (!state.socket || !state.activeConversation?.id) return;
+        state.socket.emit('join', state.activeConversation.id);
       }
 
       function updateComposerState() {
-        const enabled = Boolean(state.me && state.other && state.conversationId);
+        const enabled = Boolean(state.me && state.activeConversation?.id);
         el.messageInput.disabled = !enabled;
         el.sendBtn.disabled = !enabled;
       }
 
       function renderMessage(message) {
+        if (
+          state.activeConversation?.id &&
+          message.conversationId &&
+          message.conversationId !== state.activeConversation.id
+        ) {
+          return;
+        }
         const sentByCurrentUser =
           message.senderExternalId
             ? message.senderExternalId === state.me?.externalId
@@ -804,22 +1214,22 @@
         state.incomingCall =
           call.status === 'ringing' && call.initiatorId !== state.me?.id ? call : null;
         setCallState(getCallTitle(call), detail || describeCall(call));
-        updateCallButtons();
+        updateReferenceControls();
       }
 
-      function handleTerminalCallEvent(call, detail) {
+      async function handleTerminalCallEvent(call, detail) {
         if (!call || !callInvolvesCurrentUser(call)) return;
         if (isCompletedCall(call.id) && !state.activeCall) return;
         endCallUi(call, detail);
       }
 
-      function handleCallStateChanged(call) {
+      async function handleCallStateChanged(call) {
         if (!call || !callInvolvesCurrentUser(call)) return;
         if (TERMINAL_CALL_STATUSES.includes(call.status)) {
-          handleTerminalCallEvent(call, `Call state changed to ${call.status}.`);
+          await handleTerminalCallEvent(call, `Call state changed to ${call.status}.`);
           return;
         }
-        adoptTargetFromCall(call);
+        await adoptTargetFromCall(call);
         applyCallSnapshot(call, describeCall(call));
       }
 
@@ -833,7 +1243,7 @@
             }
             return;
           }
-          adoptTargetFromCall(call);
+          await adoptTargetFromCall(call);
           applyCallSnapshot(call, describeCall(call));
         } catch (error) {
           console.error('Active call sync failed', error);
@@ -849,8 +1259,7 @@
         state.incomingCall = null;
         destroyPeerConnection();
         setCallState('Idle', detail || 'No active call.');
-        populateTargetSelect();
-        updateCallButtons();
+        updateReferenceControls();
       }
 
       function destroyPeerConnection() {
@@ -868,7 +1277,7 @@
         toggleVideoCards(false, false);
       }
 
-      function adoptTargetFromCall(call) {
+      async function adoptTargetFromCall(call) {
         const participant = otherParticipant(call);
         if (!participant) return;
 
@@ -887,7 +1296,11 @@
 
         state.other = target;
         populateTargetSelect();
-        updateHeader();
+        try {
+          await ensurePrivateConversation(participant.externalId);
+        } catch (error) {
+          console.error('Unable to sync direct conversation for call', error);
+        }
       }
 
       function getCallTitle(call) {
@@ -912,22 +1325,32 @@
 
       function updateCallButtons() {
         const connected = Boolean(state.socket && state.socket.connected);
-        const canStartCall = Boolean(connected && state.other?.id && !state.activeCall);
+        const canStartCall = Boolean(
+          connected &&
+            state.activeConversation?.type === 'private' &&
+            state.other?.id &&
+            !state.activeCall,
+        );
         el.audioCallBtn.disabled = !canStartCall;
         el.videoCallBtn.disabled = !canStartCall;
         el.acceptBtn.disabled = !state.incomingCall;
         el.rejectBtn.disabled = !state.incomingCall;
         el.hangupBtn.disabled = !state.activeCall;
         el.targetSelect.disabled = !state.availableTargets.length || hasLiveCall();
+        el.openDirectBtn.disabled = !state.other || hasLiveCall();
       }
 
       function resetUi() {
+        state.activeConversation = null;
+        state.groups = [];
+        state.availableTargets = [];
+        state.other = null;
         state.activeCall = null;
         state.incomingCall = null;
         state.lastCompletedCallId = null;
         destroyPeerConnection();
         resetConversationState();
-        updateCallButtons();
+        updateReferenceControls();
       }
 
       function hasLiveCall() {
@@ -970,6 +1393,46 @@
         });
       }
 
+      function updateReferenceControls() {
+        updateHeader();
+        updateComposerState();
+        updateCallButtons();
+        populateTargetSelect();
+        populateGroupSelect();
+        populateGroupManagement();
+        el.groupNameInput.disabled = !state.me || hasLiveCall();
+        el.groupCreateMembers.disabled =
+          !state.me || !state.availableTargets.length || hasLiveCall();
+        el.createGroupBtn.disabled =
+          !state.me ||
+          !state.availableTargets.length ||
+          hasLiveCall() ||
+          !el.groupNameInput.value.trim() ||
+          !getSelectedValues(el.groupCreateMembers).length;
+      }
+
+      function getSelectedValues(select) {
+        return Array.from(select.selectedOptions || [])
+          .map((option) => option.value)
+          .filter(Boolean);
+      }
+
+      function clearSelectedOptions(select) {
+        Array.from(select.options || []).forEach((option) => {
+          option.selected = false;
+        });
+      }
+
+      function asList(response) {
+        if (Array.isArray(response)) {
+          return response;
+        }
+        if (Array.isArray(response?.data)) {
+          return response.data;
+        }
+        return [];
+      }
+
       async function apiGet(path) {
         const response = await fetch(`${API_BASE}${path}`, {
           headers: { Authorization: `Bearer ${TOKENS[state.key]}` },
@@ -988,6 +1451,17 @@
           body: JSON.stringify(body),
         });
         if (!response.ok) throw new Error(`POST ${path} failed with ${response.status}`);
+        return response.json();
+      }
+
+      async function apiDelete(path) {
+        const response = await fetch(`${API_BASE}${path}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${TOKENS[state.key]}`,
+          },
+        });
+        if (!response.ok) throw new Error(`DELETE ${path} failed with ${response.status}`);
         return response.json();
       }
     </script>

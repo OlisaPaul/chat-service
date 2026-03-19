@@ -45,7 +45,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     if (
-      this.presenceStateService.hasOtherActiveSockets(
+      await this.presenceStateService.hasOtherActiveSockets(
         user.externalId,
         socket.id,
       )
@@ -71,7 +71,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: CreateCallDto,
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     const call = await this.callsService.createCall(
       user,
       payload.targetUserId,
@@ -89,7 +89,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { callId: number },
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     const call = await this.callsService.acceptCall(payload.callId, user);
     socket.join(`call:${call.id}`);
     this.emitCallUpdate('call_answered', call);
@@ -101,7 +101,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { callId: number },
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     const call = await this.callsService.rejectCall(payload.callId, user);
     this.emitCallUpdate('call_rejected', call);
     return call;
@@ -112,7 +112,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { callId: number },
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     const call = await this.callsService.cancelCall(payload.callId, user);
     this.emitCallUpdate('call_cancelled', call);
     return call;
@@ -123,7 +123,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { callId: number },
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     const call = await this.callsService.endCall(payload.callId, user);
     this.emitCallUpdate('call_ended', call);
     return call;
@@ -135,7 +135,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     payload: { callId: number; targetUserExternalId: string; sdp: unknown },
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     await this.callsService.assertCanRelaySignal(
       payload.callId,
       user,
@@ -154,7 +154,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     payload: { callId: number; targetUserExternalId: string; sdp: unknown },
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     await this.callsService.assertCanRelaySignal(
       payload.callId,
       user,
@@ -177,7 +177,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     },
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     await this.callsService.assertCanRelaySignal(
       payload.callId,
       user,
@@ -192,6 +192,16 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private emitCallUpdate(eventName: string, call: CallResponseDto) {
     this.emitCallToParticipants(eventName, call);
+  }
+
+  private async resolveSocketUser(socket: Socket) {
+    const existingUser = socket.data.user as User | undefined;
+    if (existingUser) {
+      return existingUser;
+    }
+
+    const { user } = await this.authIdentityService.authenticateSocket(socket);
+    return user;
   }
 
   private emitCallToParticipants(eventName: string, call: CallResponseDto) {

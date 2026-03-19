@@ -99,4 +99,18 @@ describe('MessagesGateway', () => {
       ForbiddenException,
     );
   });
+
+  it('re-authenticates the socket for join when socket.data.user is missing', async () => {
+    socket.data = {};
+    authIdentityService.authenticateSocket.mockResolvedValue({
+      user,
+      payload: {},
+    } as any);
+    conversationsService.getConversationById.mockResolvedValue({ id: 7 } as any);
+
+    await gateway.handleJoin(7, socket);
+
+    expect(authIdentityService.authenticateSocket).toHaveBeenCalledWith(socket);
+    expect(conversationsService.getConversationById).toHaveBeenCalledWith(7, user);
+  });
 });

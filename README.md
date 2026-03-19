@@ -3,11 +3,13 @@
 Self-hostable NestJS communication backend with:
 
 - realtime chat
+- named group conversations
 - presence tracking
 - file uploads
 - 1:1 audio calling
 - 1:1 video calling
 - a browser-based reference client served by the backend
+- optional Redis-backed multi-instance realtime mode
 
 The backend is the main product surface. The in-repo UI at [`/frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) is the supported reference client for validation and onboarding, not a polished production app.
 
@@ -16,6 +18,7 @@ The backend is the main product surface. The in-repo UI at [`/frontend/index.htm
 - JWT-authenticated REST API under `/api/v1`
 - Socket.IO chat, presence, and call signaling
 - direct/private conversations
+- named group conversations with admin-managed membership
 - paginated message history and read state
 - uploads served from `/api/v1/assets/...`
 - persisted call sessions and call history
@@ -98,10 +101,12 @@ The supported validation path is:
 
 1. Open the reference client in two tabs.
 2. Select `Alice` in one tab and `Bob` in the other.
-3. Send a message to confirm realtime chat works.
-4. Start an audio or video call.
-5. Accept in the other tab.
-6. Confirm chat, call, and hang-up behavior.
+3. Send a direct message to confirm realtime chat works.
+4. Create a named group and send a group message.
+5. Add or remove a member from the group as the admin.
+6. Switch back to the direct chat and start an audio or video call.
+7. Accept in the other tab.
+8. Confirm chat, group membership, call, and hang-up behavior.
 
 If you change `JWT_SHARED_SECRET`, the built-in Alice/Bob tokens in [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) will no longer authenticate.
 
@@ -115,6 +120,7 @@ Primary environment groups in [`.env.example`](C:\Users\DEEPIJA\Downloads\chat-s
 - uploads and assets
 - feature flags
 - RTC
+- shared realtime state
 - Socket.IO admin UI
 - dev tooling
 
@@ -126,7 +132,48 @@ Important defaults:
 - `ASSETS_PATH=storage/assets`
 - `SOCKET_ADMIN_ENABLED=false`
 
+Local development note:
+
+- localhost and `127.0.0.1` origins on any port are accepted automatically for browser testing, including multi-instance local runs such as ports `3001` and `3002`
+
 Migrations are the supported schema path for self-host installs. Runtime schema sync is not the recommended default.
+
+## Auth Modes
+
+The default auth mode is still JWT with claim-based user mapping.
+
+The auth layer is now split internally into:
+
+- token verification
+- profile/claim mapping
+- user materialization
+
+Current supported default:
+
+- `AUTH_PROVIDER=jwt`
+
+Current provisioning modes:
+
+- `AUTH_AUTO_PROVISION_USERS=true`: create/update users from incoming auth claims
+- `AUTH_AUTO_PROVISION_USERS=false`: require users to already exist in the database
+
+The default Alice/Bob reference flow still assumes the built-in JWT mode.
+
+## Multi-Instance Mode
+
+Single-node mode works without Redis.
+
+For production-minded multi-instance deployments:
+
+- set `REDIS_ENABLED=true`
+- set `REDIS_HOST`/`REDIS_PORT` or `REDIS_URL`
+- run more than one app instance behind your proxy/load balancer
+
+Redis-backed mode enables:
+
+- shared presence state
+- cross-instance Socket.IO room/event delivery
+- consistent chat/call socket behavior when users hit different app instances
 
 ## Dev Tunnel
 
@@ -163,11 +210,11 @@ The command prints a `Remote test URL` that points to `/frontend/index.html` thr
 ## Current Limits
 
 - 1:1 calls only
+- group chat only; no group calling yet
 - no recording
-- no group calling
 - no SFU/media-server integration
 - reference client is intentionally minimal
-- presence is still stored in-memory, so it is not yet designed for multi-instance deployments
+- Redis is the current scale-ready path for multi-instance realtime behavior, but broader HA/production architecture is still a later phase
 
 ## License
 

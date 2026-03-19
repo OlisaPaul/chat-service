@@ -13,8 +13,11 @@ export class Conversation {
   @Column({ type: 'enum', enum: ['private', 'group'], default: 'private' })
   type: ConversationType;
 
-  @Column({ type: 'varchar', length: 255 })
-  participantIdsHash: string; // Deterministic hash of sorted participant IDs
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  participantIdsHash?: string | null; // Deterministic hash of sorted participant IDs for private chats
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  name?: string | null;
 
   @OneToMany(() => ConversationParticipant, participant => participant.conversation, { cascade: true })
   participants: ConversationParticipant[];

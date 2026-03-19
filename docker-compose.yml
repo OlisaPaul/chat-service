@@ -22,6 +22,13 @@ services:
       timeout: 5s
       retries: 12
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    profiles: ["realtime"]
+    ports:
+      - "6379:6379"
+
   app:
     build:
       context: .
@@ -38,6 +45,7 @@ services:
       DB_SYNCHRONIZE: "false"
       UPLOAD_PATH: /app/storage/assets/chat/uploads
       ASSETS_PATH: /app/storage/assets
+      REDIS_HOST: redis
     ports:
       - "3001:3001"
     volumes:

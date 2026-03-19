@@ -1,4 +1,9 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -17,6 +22,7 @@ import {
   getPaginationResponse,
 } from '../common/helper-functions/get-pagination-meta';
 import { RoleAuthorizationService } from '../auth/role-authorization.service';
+import { CreateGroupConversationDto } from './dto/create-conversation.dto';
 
 @Injectable()
 export class ConversationsService {
@@ -33,6 +39,54 @@ export class ConversationsService {
 
   private generateParticipantIdsHash(participantIds: number[]): string {
     return participantIds.sort((a, b) => a - b).join(',');
+  }
+
+  private mapConversationResponse(conversation: Conversation) {
+    return {
+      id: conversation.id,
+      type: conversation.type,
+      name: conversation.name ?? undefined,
+      participants: conversation.participants.map((p) => ({
+        id: p.user.id,
+        externalId: p.user.externalId,
+        name: p.user.name,
+        avatarUrl: p.user.avatarUrl,
+        role: p.role,
+      })),
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+    };
+  }
+
+  private async resolveUsersByExternalIds(externalIds: string[]) {
+    const normalizedExternalIds = Array.from(
+      new Set(
+        externalIds
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    if (!normalizedExternalIds.length) {
+      throw new BadRequestException('At least one participant is required');
+    }
+
+    const users = await this.usersRepository.find({
+      where: normalizedExternalIds.map((externalId) => ({ externalId })),
+    });
+
+    const foundExternalIds = new Set(users.map((user) => user.externalId));
+    const missingExternalIds = normalizedExternalIds.filter(
+      (externalId) => !foundExternalIds.has(externalId),
+    );
+
+    if (missingExternalIds.length) {
+      throw new NotFoundException(
+        `Users not found: ${missingExternalIds.join(', ')}`,
+      );
+    }
+
+    return users;
   }
 
   async createPrivateConversation(
@@ -108,6 +162,7 @@ export class ConversationsService {
     const conversation = this.conversationsRepository.create({
       type: 'private' as ConversationType,
       participantIdsHash,
+      name: null,
     });
     const savedConversation =
       await this.conversationsRepository.save(conversation);
@@ -128,6 +183,48 @@ export class ConversationsService {
     await this.participantsRepository.save(participants);
 
     // Return conversation with participants
+    return (await this.conversationsRepository.findOne({
+      where: { id: savedConversation.id },
+      relations: ['participants', 'participants.user'],
+    })) as Conversation;
+  }
+
+  async createGroupConversation(
+    currentUser: User,
+    body: CreateGroupConversationDto,
+  ): Promise<Conversation> {
+    const invitedUsers = await this.resolveUsersByExternalIds(body.participantIds);
+    const usersById = new Map<number, User>();
+    usersById.set(currentUser.id, currentUser);
+    invitedUsers.forEach((user) => usersById.set(user.id, user));
+
+    const participants = Array.from(usersById.values());
+    if (participants.length < 2) {
+      throw new BadRequestException(
+        'A group conversation requires at least two participants including the creator',
+      );
+    }
+
+    const conversation = this.conversationsRepository.create({
+      type: 'group' as ConversationType,
+      name: body.name.trim(),
+      participantIdsHash: null,
+    });
+    const savedConversation =
+      await this.conversationsRepository.save(conversation);
+
+    const conversationParticipants = participants.map((user) =>
+      this.participantsRepository.create({
+        conversation: savedConversation,
+        user,
+        role:
+          user.id === currentUser.id
+            ? ('admin' as ParticipantRole)
+            : ('member' as ParticipantRole),
+      }),
+    );
+    await this.participantsRepository.save(conversationParticipants);
+
     return (await this.conversationsRepository.findOne({
       where: { id: savedConversation.id },
       relations: ['participants', 'participants.user'],
@@ -158,23 +255,9 @@ export class ConversationsService {
       data = qb.getMany();
       return data;
     }
-    const mappedData = data.map((participant) => {
-      const conversation = participant.conversation;
-      return {
-        id: conversation.id,
-        type: conversation.type,
-        participants: conversation.participants.map((p) => ({
-          id: p.user.id,
-          externalId: p.user.externalId,
-          name: p.user.name,
-          avatarUrl: p.user.avatarUrl,
-          role: p.role,
-        })),
-        createdAt: conversation.createdAt,
-        updatedAt: conversation.updatedAt,
-        // TODO: Add lastMessage when messages are implemented
-      };
-    });
+    const mappedData = data.map((participant) =>
+      this.mapConversationResponse(participant.conversation),
+    );
     if (!paginationDto) {
       return mappedData;
     } else {
@@ -196,5 +279,113 @@ export class ConversationsService {
     });
 
     return participant?.conversation || null;
+  }
+
+  async getConversationDetails(id: number, user: User) {
+    const conversation = await this.getConversationById(id, user);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    return this.mapConversationResponse(conversation);
+  }
+
+  async addGroupMembers(
+    conversationId: number,
+    currentUser: User,
+    participantExternalIds: string[],
+  ) {
+    const conversation = await this.getConversationById(conversationId, currentUser);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+    if (conversation.type !== 'group') {
+      throw new BadRequestException('Only group conversations support membership updates');
+    }
+
+    const currentParticipant = conversation.participants.find(
+      (participant) => participant.user.id === currentUser.id,
+    );
+    if (!currentParticipant || currentParticipant.role !== 'admin') {
+      throw new ForbiddenException('Only group admins can add members');
+    }
+
+    const usersToAdd = await this.resolveUsersByExternalIds(participantExternalIds);
+    const existingUserIds = new Set(
+      conversation.participants.map((participant) => participant.user.id),
+    );
+
+    const newParticipants = usersToAdd
+      .filter((user) => !existingUserIds.has(user.id))
+      .map((user) =>
+        this.participantsRepository.create({
+          conversation,
+          user,
+          role: 'member' as ParticipantRole,
+        }),
+      );
+
+    if (newParticipants.length) {
+      await this.participantsRepository.save(newParticipants);
+    }
+
+    return this.getConversationDetails(conversationId, currentUser);
+  }
+
+  async removeGroupMember(
+    conversationId: number,
+    currentUser: User,
+    participantExternalId: string,
+  ) {
+    const conversation = await this.getConversationById(conversationId, currentUser);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+    if (conversation.type !== 'group') {
+      throw new BadRequestException('Only group conversations support membership updates');
+    }
+
+    const currentParticipant = conversation.participants.find(
+      (participant) => participant.user.id === currentUser.id,
+    );
+    if (!currentParticipant || currentParticipant.role !== 'admin') {
+      throw new ForbiddenException('Only group admins can remove members');
+    }
+
+    const participantToRemove = conversation.participants.find(
+      (participant) => participant.user.externalId === participantExternalId,
+    );
+    if (!participantToRemove) {
+      throw new NotFoundException('Participant not found in this group');
+    }
+    if (participantToRemove.role === 'admin') {
+      throw new BadRequestException('Admin participants cannot be removed in this phase');
+    }
+
+    await this.participantsRepository.delete(participantToRemove.id);
+    return this.getConversationDetails(conversationId, currentUser);
+  }
+
+  async leaveGroupConversation(conversationId: number, currentUser: User) {
+    const conversation = await this.getConversationById(conversationId, currentUser);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+    if (conversation.type !== 'group') {
+      throw new BadRequestException('Only group conversations can be left');
+    }
+
+    const currentParticipant = conversation.participants.find(
+      (participant) => participant.user.id === currentUser.id,
+    );
+    if (!currentParticipant) {
+      throw new NotFoundException('Participant not found in this group');
+    }
+    if (currentParticipant.role === 'admin') {
+      throw new BadRequestException('Group admins cannot leave until admin transfer is supported');
+    }
+
+    await this.participantsRepository.delete(currentParticipant.id);
+    return { left: true, conversationId };
   }
 }

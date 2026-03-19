@@ -82,7 +82,7 @@ describe('CallsGateway', () => {
     } as unknown as jest.Mocked<AuthIdentityService>;
 
     presenceStateService = {
-      hasOtherActiveSockets: jest.fn(),
+      hasOtherActiveSockets: jest.fn().mockResolvedValue(false),
     } as unknown as jest.Mocked<PresenceStateService>;
 
     gateway = new CallsGateway(
@@ -159,7 +159,7 @@ describe('CallsGateway', () => {
   });
 
   it('does not end a call when the user still has another active socket', async () => {
-    presenceStateService.hasOtherActiveSockets.mockReturnValue(true);
+    presenceStateService.hasOtherActiveSockets.mockResolvedValue(true);
 
     await gateway.handleDisconnect(socket);
 

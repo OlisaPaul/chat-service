@@ -47,9 +47,79 @@ Notes:
 - `:otherUserId` accepts either an internal numeric user ID or an external ID such as `appA:bob`
 - this is the reference-client entry point for direct chat/call sessions
 
+#### `POST /api/v1/conversations/group`
+
+Creates a named group conversation.
+
+Example request:
+
+```json
+{
+  "name": "Project Team",
+  "participantIds": ["appA:bob", "appA:charlie"]
+}
+```
+
+Current behavior:
+
+- the authenticated user becomes the initial `admin`
+- invited users start as `member`
+- the group name is required
+
+#### `GET /api/v1/conversations/:conversationId`
+
+Returns the conversation details for the current member, including participant roles.
+
+#### `POST /api/v1/conversations/:conversationId/members`
+
+Adds one or more members to a group conversation.
+
+Example request:
+
+```json
+{
+  "participantIds": ["appA:charlie"]
+}
+```
+
+Current behavior:
+
+- only group admins can add members
+- only existing users can be added
+- already-present members are ignored
+
+#### `DELETE /api/v1/conversations/:conversationId/members/:participantExternalId`
+
+Removes a non-admin member from a group conversation.
+
+Current behavior:
+
+- only group admins can remove members
+- admin removal or transfer is not supported in this phase
+
+#### `POST /api/v1/conversations/:conversationId/leave`
+
+Leaves a group conversation.
+
+Current behavior:
+
+- regular members can leave
+- admins cannot leave until admin transfer is supported
+
 #### `GET /api/v1/conversations`
 
-Paginated list of the current user’s conversations.
+Paginated list of the current user's conversations.
+
+Conversation payloads now distinguish:
+
+- `type: "private"`
+- `type: "group"`
+
+Group payloads include:
+
+- `name`
+- `participants`
+- each participant's `role`
 
 ### Messages
 
@@ -124,6 +194,8 @@ Example:
 
 The current platform uses one Socket.IO connection for chat, presence, and calling.
 
+In multi-instance deployments, shared socket delivery depends on Redis-backed realtime mode.
+
 ### Connection/Auth
 
 The reference client sends the JWT in the socket auth payload:
@@ -155,6 +227,8 @@ Important behavior:
 
 - realtime messages are broadcast to the conversation room
 - the reference client joins the active conversation room after loading or creating the conversation
+- server-side conversation room joins are validated against conversation membership
+- the same chat socket flow is used for both direct and group conversations
 
 ### Call Lifecycle Events
 
@@ -230,6 +304,7 @@ Important behavior:
 - signaling is only relayed for valid participants in valid call states
 - the server is the source of truth for call lifecycle state
 - browser media acquisition stays on the client side
+- in multi-instance mode, call events and signaling rely on the Redis-backed Socket.IO adapter
 
 ## Reference Client Notes
 
@@ -244,5 +319,12 @@ It is intended for:
 - onboarding
 - manual validation
 - API/socket contract smoke testing
+
+Current validation flows in the reference client:
+
+- direct chat
+- named group chat with basic membership management
+- 1:1 audio calling
+- 1:1 video calling
 
 It is not intended to define production UX or product policy.

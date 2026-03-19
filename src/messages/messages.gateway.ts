@@ -47,7 +47,7 @@ export class MessagesGateway implements OnGatewayConnection {
     @MessageBody() conversationId: number,
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     const conversation = await this.conversationsService.getConversationById(
       conversationId,
       user,
@@ -70,7 +70,7 @@ export class MessagesGateway implements OnGatewayConnection {
     },
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     const saved = await this.messagesService.sendMessage(
       user,
       data.conversationId,
@@ -95,7 +95,7 @@ export class MessagesGateway implements OnGatewayConnection {
     @MessageBody() conversationId: number,
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     socket.to(`conversation:${conversationId}`).emit('user_typing', {
       userId: user.externalId,
       userName: user.name,
@@ -109,7 +109,7 @@ export class MessagesGateway implements OnGatewayConnection {
     @MessageBody() conversationId: number,
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     socket.to(`conversation:${conversationId}`).emit('user_typing', {
       userId: user.externalId,
       userName: user.name,
@@ -123,7 +123,7 @@ export class MessagesGateway implements OnGatewayConnection {
     @MessageBody() conversationId: number,
     @ConnectedSocket() socket: Socket,
   ) {
-    const user = socket.data.user as User;
+    const user = await this.resolveSocketUser(socket);
     const updatedMessages = await this.messagesService.markMessagesAsRead(
       conversationId,
       user,
@@ -140,5 +140,15 @@ export class MessagesGateway implements OnGatewayConnection {
       userId: user.externalId,
       updatedMessages,
     });
+  }
+
+  private async resolveSocketUser(socket: Socket) {
+    const existingUser = socket.data.user as User | undefined;
+    if (existingUser) {
+      return existingUser;
+    }
+
+    const { user } = await this.authIdentityService.authenticateSocket(socket);
+    return user;
   }
 }

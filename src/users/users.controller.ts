@@ -61,7 +61,7 @@ export class UsersController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async getOnlineUsers(@Query() paginationDto: PaginationDto) {
-    const ids = this.presenceStateService.getOnlineUserIds();
+    const ids = await this.presenceStateService.getOnlineUserIds();
     return this.usersService.findByExternalIds(ids, paginationDto);
   }
 }

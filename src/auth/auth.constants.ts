@@ -1,0 +1,2 @@
+export const AUTH_TOKEN_VERIFIER = Symbol('AUTH_TOKEN_VERIFIER');
+export const AUTH_PROFILE_MAPPER = Symbol('AUTH_PROFILE_MAPPER');

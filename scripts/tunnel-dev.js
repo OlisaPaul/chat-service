@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 const ROOT_DIR = path.resolve(__dirname, '..');
 require('dotenv').config({ path: path.join(ROOT_DIR, '.env') });
 
-const BACKEND_PORT = Number(process.env.BACKEND_PORT || 3001);
+const BACKEND_PORT = Number(process.env.PORT || 3001);
 const NGROK_AUTHTOKEN = process.env.NGROK_AUTHTOKEN;
 const NGROK_BIN = path.join(
   ROOT_DIR,

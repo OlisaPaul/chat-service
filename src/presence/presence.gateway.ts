@@ -56,7 +56,7 @@ export class PresenceGateway
       const { user } = await this.authIdentityService.authenticateSocket(socket);
 
       socket.join(`user:${user.externalId}`);
-      const result = this.presenceStateService.markOnline(
+      const result = await this.presenceStateService.markOnline(
         socket.id,
         user.externalId,
         user.name,
@@ -74,8 +74,8 @@ export class PresenceGateway
     }
   }
 
-  handleDisconnect(socket: Socket) {
-    const result = this.presenceStateService.markOffline(socket.id);
+  async handleDisconnect(socket: Socket) {
+    const result = await this.presenceStateService.markOffline(socket.id);
     if (!result || !result.becameOffline) {
       return;
     }

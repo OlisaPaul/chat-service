@@ -1,5 +1,38 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserResponseDto } from '../../users/dto/user-response.dto';
+
+class ConversationParticipantResponseDto {
+  @ApiProperty({
+    description: 'User ID',
+    example: 1,
+  })
+  id: number;
+
+  @ApiProperty({
+    description: 'External user ID',
+    example: 'appA:user123',
+  })
+  externalId: string;
+
+  @ApiProperty({
+    description: 'User display name',
+    example: 'John Doe',
+  })
+  name: string;
+
+  @ApiProperty({
+    description: 'User avatar URL',
+    required: false,
+    example: 'https://example.com/avatar.jpg',
+  })
+  avatarUrl?: string;
+
+  @ApiProperty({
+    description: 'Participant role within the conversation',
+    enum: ['admin', 'member'],
+    example: 'member',
+  })
+  role: string;
+}
 
 export class ConversationResponseDto {
   @ApiProperty({
@@ -9,10 +42,24 @@ export class ConversationResponseDto {
   id: number;
 
   @ApiProperty({
-    description: 'Conversation participants',
-    type: [UserResponseDto],
+    description: 'Conversation type',
+    enum: ['private', 'group'],
+    example: 'group',
   })
-  participants: UserResponseDto[];
+  type: string;
+
+  @ApiProperty({
+    description: 'Conversation name for group chats',
+    required: false,
+    example: 'Project Team',
+  })
+  name?: string;
+
+  @ApiProperty({
+    description: 'Conversation participants',
+    type: [ConversationParticipantResponseDto],
+  })
+  participants: ConversationParticipantResponseDto[];
 
   @ApiProperty({
     description: 'Last message in conversation',

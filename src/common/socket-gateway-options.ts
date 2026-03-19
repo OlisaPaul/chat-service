@@ -1,7 +1,8 @@
-const defaultPort = process.env.PORT || '3001';
+import { buildCorsOriginHandler } from './cors.util';
+
 const configuredOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
-  : [`http://localhost:${defaultPort}`, `http://127.0.0.1:${defaultPort}`];
+  : [];
 
 const socketCorsOrigins = [...configuredOrigins];
 
@@ -14,7 +15,7 @@ if (
 
 export const socketGatewayOptions = {
   cors: {
-    origin: socketCorsOrigins.includes('*') ? true : socketCorsOrigins,
+    origin: buildCorsOriginHandler(socketCorsOrigins),
     credentials: true,
   },
 };

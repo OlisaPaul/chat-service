@@ -16,6 +16,7 @@ import { PresenceModule } from './presence/presence.module';
 import { CallsModule } from './calls/calls.module';
 import { CallParticipant } from './calls/call-participant.entity';
 import { CallSession } from './calls/call-session.entity';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CallSession } from './calls/call-session.entity';
       isGlobal: true,
       load: [configuration],
     }),
+    RealtimeModule,
     AuthModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
