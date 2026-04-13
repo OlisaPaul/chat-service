@@ -1,6 +1,6 @@
 # API and Socket Contract
 
-This document describes the current supported platform surface for the self-hostable chat and 1:1 calling stack. The reference client is one consumer of this contract, not the definition of the contract itself.
+This document describes the current supported platform surface for the self-hostable chat and audio/video calling stack. The reference client is one consumer of this contract, not the definition of the contract itself.
 
 Base REST prefix:
 
@@ -259,9 +259,36 @@ Call-state events return the full current call/session object used by the refere
 - `id`
 - `status`
 - `type`
+- `scope`: `private` or `group`
+- `conversationId`: set for group calls
 - `initiator`
 - `participants`
 - `media`
+
+Start-call payloads:
+
+```json
+{
+  "targetUserId": 2,
+  "type": "audio"
+}
+```
+
+```json
+{
+  "conversationId": 12,
+  "type": "video"
+}
+```
+
+Behavior:
+
+- `targetUserId` starts a private 1:1 call
+- `conversationId` starts a call for an existing group conversation
+- group calls invite the current members of the group conversation
+- the group creator/caller is accepted immediately; other members start as `invited`
+- group calls use the same lifecycle events as private calls
+- in a group call, a participant can reject or leave without necessarily ending the whole session; other participants receive `call_state_changed`
 
 ### WebRTC Signaling Events
 
@@ -302,9 +329,11 @@ Relayed server payloads include:
 Important behavior:
 
 - signaling is only relayed for valid participants in valid call states
+- signaling targets must be accepted participants in the call
 - the server is the source of truth for call lifecycle state
 - browser media acquisition stays on the client side
 - in multi-instance mode, call events and signaling rely on the Redis-backed Socket.IO adapter
+- the reference client uses a small peer-to-peer mesh for group calls; larger production conferencing should use an SFU/media-server design later
 
 ## Reference Client Notes
 
@@ -326,5 +355,6 @@ Current validation flows in the reference client:
 - named group chat with basic membership management
 - 1:1 audio calling
 - 1:1 video calling
+- small group audio/video calling from an existing group conversation
 
 It is not intended to define production UX or product policy.

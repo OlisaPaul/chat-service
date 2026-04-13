@@ -16,6 +16,15 @@ import { CreateCallDto } from './dto/create-call.dto';
 import { CallResponseDto } from './dto/call-response.dto';
 import { PresenceStateService } from '../presence/presence-state.service';
 import { socketGatewayOptions } from '../common/socket-gateway-options';
+import { CallStatus } from './call-session.entity';
+
+const TERMINAL_CALL_STATUSES = [
+  CallStatus.REJECTED,
+  CallStatus.CANCELLED,
+  CallStatus.ENDED,
+  CallStatus.MISSED,
+  CallStatus.FAILED,
+];
 
 @WebSocketGateway(socketGatewayOptions)
 export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -76,6 +85,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       user,
       payload.targetUserId,
       payload.type,
+      payload.conversationId,
     );
 
     socket.join(`call:${call.id}`);
@@ -103,7 +113,10 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.resolveSocketUser(socket);
     const call = await this.callsService.rejectCall(payload.callId, user);
-    this.emitCallUpdate('call_rejected', call);
+    this.emitCallUpdate(
+      this.isTerminalCall(call) ? 'call_rejected' : 'call_state_changed',
+      call,
+    );
     return call;
   }
 
@@ -125,7 +138,10 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.resolveSocketUser(socket);
     const call = await this.callsService.endCall(payload.callId, user);
-    this.emitCallUpdate('call_ended', call);
+    this.emitCallUpdate(
+      this.isTerminalCall(call) ? 'call_ended' : 'call_state_changed',
+      call,
+    );
     return call;
   }
 
@@ -208,5 +224,9 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     for (const participant of call.participants) {
       this.server.to(`user:${participant.externalId}`).emit(eventName, call);
     }
+  }
+
+  private isTerminalCall(call: CallResponseDto) {
+    return TERMINAL_CALL_STATUSES.includes(call.status);
   }
 }

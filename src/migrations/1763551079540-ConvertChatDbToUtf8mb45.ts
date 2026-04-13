@@ -14,12 +14,23 @@ export class ConvertChatDbToUtf8mb451763551079540
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    const tables = [
+    const candidateTables = [
       'users',
       'conversations',
       'conversation_participants',
       'messages',
     ];
+    const tables: string[] = [];
+
+    for (const table of candidateTables) {
+      if (await queryRunner.hasTable(table)) {
+        tables.push(table);
+      }
+    }
+
+    if (!tables.length) {
+      return;
+    }
 
     // 1️⃣ Get all foreign keys for these tables
     const foreignKeys: ForeignKey[] = await queryRunner.query(

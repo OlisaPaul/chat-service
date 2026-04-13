@@ -10,6 +10,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { In, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
+import {
+  Conversation,
+  ConversationType,
+} from '../entities/conversation.entity';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import {
   getPaginatedData,
@@ -50,11 +54,28 @@ export class CallsService {
     private readonly callParticipantRepository: Repository<CallParticipant>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    @InjectRepository(Conversation)
+    private readonly conversationsRepository: Repository<Conversation>,
     private readonly configService: ConfigService,
   ) {}
 
-  async createCall(initiator: User, targetUserId: number, type: CallType) {
+  async createCall(
+    initiator: User,
+    targetUserId: number | undefined,
+    type: CallType,
+    conversationId?: number,
+  ) {
     this.assertCallsEnabled();
+
+    if (conversationId) {
+      return this.createGroupCall(initiator, conversationId, type);
+    }
+
+    if (!targetUserId) {
+      throw new BadRequestException(
+        'targetUserId is required for private calls',
+      );
+    }
 
     if (initiator.id === targetUserId) {
       throw new BadRequestException('You cannot start a call with yourself');
@@ -82,6 +103,7 @@ export class CallsService {
       initiator,
       type,
       status: CallStatus.RINGING,
+      conversation: null,
     });
     const savedSession = await this.callSessionRepository.save(session);
 
@@ -113,7 +135,13 @@ export class CallsService {
         call: { id: callId },
         user: { id: user.id },
       },
-      relations: ['call', 'call.initiator', 'call.participants', 'call.participants.user'],
+      relations: [
+        'call',
+        'call.initiator',
+        'call.conversation',
+        'call.participants',
+        'call.participants.user',
+      ],
     });
 
     if (!participant) {
@@ -129,7 +157,13 @@ export class CallsService {
         user: { id: user.id },
         call: { status: In(ACTIVE_CALL_STATUSES) },
       },
-      relations: ['call', 'call.initiator', 'call.participants', 'call.participants.user'],
+      relations: [
+        'call',
+        'call.initiator',
+        'call.conversation',
+        'call.participants',
+        'call.participants.user',
+      ],
       order: { call: { updatedAt: 'DESC' } as never },
     });
 
@@ -141,6 +175,7 @@ export class CallsService {
       .createQueryBuilder('participant')
       .leftJoinAndSelect('participant.call', 'call')
       .leftJoinAndSelect('call.initiator', 'initiator')
+      .leftJoinAndSelect('call.conversation', 'conversation')
       .leftJoinAndSelect('call.participants', 'callParticipants')
       .leftJoinAndSelect('callParticipants.user', 'callParticipantUser')
       .where('participant.user_id = :userId', { userId: user.id })
@@ -158,7 +193,7 @@ export class CallsService {
 
     const participant = call.participants.find((entry) => entry.user.id === user.id);
     if (!participant || participant.role !== CallParticipantRole.CALLEE) {
-      throw new ForbiddenException('Only the invited callee can accept a call');
+      throw new ForbiddenException('Only invited callees can accept a call');
     }
     if (participant.status !== CallParticipantStatus.INVITED) {
       throw new BadRequestException('Call participant cannot accept this call');
@@ -167,10 +202,11 @@ export class CallsService {
     await this.callParticipantRepository.update(participant.id, {
       status: CallParticipantStatus.ACCEPTED,
     });
-    await this.callSessionRepository.update(callId, {
-      status: CallStatus.ACCEPTED,
-      startedAt: new Date(),
-    });
+    const update: Partial<CallSession> = { status: CallStatus.ACCEPTED };
+    if (!call.startedAt) {
+      update.startedAt = new Date();
+    }
+    await this.callSessionRepository.update(callId, update);
 
     this.logger.log(`Call ${callId} accepted by ${user.externalId}`);
     return new CallResponseDto(await this.getCallById(callId, user), user);
@@ -182,7 +218,7 @@ export class CallsService {
 
     const participant = call.participants.find((entry) => entry.user.id === user.id);
     if (!participant || participant.role !== CallParticipantRole.CALLEE) {
-      throw new ForbiddenException('Only the invited callee can reject a call');
+      throw new ForbiddenException('Only invited callees can reject a call');
     }
     if (participant.status !== CallParticipantStatus.INVITED) {
       throw new BadRequestException('Call participant cannot reject this call');
@@ -191,10 +227,20 @@ export class CallsService {
     await this.callParticipantRepository.update(participant.id, {
       status: CallParticipantStatus.REJECTED,
     });
-    await this.callSessionRepository.update(callId, {
-      status: CallStatus.REJECTED,
-      endedAt: new Date(),
-    });
+
+    const nextStatus = this.shouldFinishGroupCallAfterParticipantExit(
+      call,
+      user.id,
+      CallParticipantStatus.REJECTED,
+    )
+      ? CallStatus.REJECTED
+      : call.status;
+    if (nextStatus === CallStatus.REJECTED) {
+      await this.callSessionRepository.update(callId, {
+        status: CallStatus.REJECTED,
+        endedAt: new Date(),
+      });
+    }
 
     this.logger.log(`Call ${callId} rejected by ${user.externalId}`);
     return new CallResponseDto(await this.getCallById(callId, user), user);
@@ -231,10 +277,13 @@ export class CallsService {
     await this.callParticipantRepository.update(participant.id, {
       status: CallParticipantStatus.LEFT,
     });
-    await this.callSessionRepository.update(callId, {
-      status: CallStatus.ENDED,
-      endedAt: new Date(),
-    });
+
+    if (this.shouldEndAcceptedCallAfterParticipantLeaves(call, user.id)) {
+      await this.callSessionRepository.update(callId, {
+        status: CallStatus.ENDED,
+        endedAt: new Date(),
+      });
+    }
 
     this.logger.log(`Call ${callId} ended by ${user.externalId}`);
     return new CallResponseDto(await this.getCallById(callId, user), user);
@@ -255,9 +304,16 @@ export class CallsService {
 
     if (activeCall.status === CallStatus.RINGING) {
       const nextStatus =
-        participant.role === CallParticipantRole.CALLER
-          ? CallStatus.CANCELLED
-          : CallStatus.MISSED;
+        participant.role === CallParticipantRole.CALLER ||
+        this.shouldFinishGroupCallAfterParticipantExit(
+          activeCall,
+          user.id,
+          CallParticipantStatus.MISSED,
+        )
+          ? participant.role === CallParticipantRole.CALLER
+            ? CallStatus.CANCELLED
+            : CallStatus.MISSED
+          : activeCall.status;
       const nextParticipantStatus =
         participant.role === CallParticipantRole.CALLER
           ? CallParticipantStatus.LEFT
@@ -266,10 +322,12 @@ export class CallsService {
       await this.callParticipantRepository.update(participant.id, {
         status: nextParticipantStatus,
       });
-      await this.callSessionRepository.update(activeCall.id, {
-        status: nextStatus,
-        endedAt: new Date(),
-      });
+      if (nextStatus !== activeCall.status) {
+        await this.callSessionRepository.update(activeCall.id, {
+          status: nextStatus,
+          endedAt: new Date(),
+        });
+      }
 
       this.logger.log(
         `Call ${activeCall.id} updated to ${nextStatus} after disconnect from ${user.externalId}`,
@@ -281,10 +339,12 @@ export class CallsService {
       await this.callParticipantRepository.update(participant.id, {
         status: CallParticipantStatus.LEFT,
       });
-      await this.callSessionRepository.update(activeCall.id, {
-        status: CallStatus.ENDED,
-        endedAt: new Date(),
-      });
+      if (this.shouldEndAcceptedCallAfterParticipantLeaves(activeCall, user.id)) {
+        await this.callSessionRepository.update(activeCall.id, {
+          status: CallStatus.ENDED,
+          endedAt: new Date(),
+        });
+      }
 
       this.logger.log(
         `Active call ${activeCall.id} ended after disconnect from ${user.externalId}`,
@@ -327,6 +387,10 @@ export class CallsService {
 
     if (target.user.id === user.id) {
       throw new BadRequestException('Cannot relay signaling data to the same participant');
+    }
+
+    if (target.status !== CallParticipantStatus.ACCEPTED) {
+      throw new BadRequestException('Signal target has not joined this call');
     }
 
     return new CallResponseDto(call, user);
@@ -376,7 +440,13 @@ export class CallsService {
         user: { id: userId },
         call: { status: In(ACTIVE_CALL_STATUSES) },
       },
-      relations: ['call', 'call.initiator', 'call.participants', 'call.participants.user'],
+      relations: [
+        'call',
+        'call.initiator',
+        'call.conversation',
+        'call.participants',
+        'call.participants.user',
+      ],
       order: { call: { updatedAt: 'DESC' } as never },
     });
 
@@ -389,9 +459,11 @@ export class CallsService {
     const call = await this.callSessionRepository
       .createQueryBuilder('call')
       .leftJoinAndSelect('call.initiator', 'initiator')
+      .leftJoinAndSelect('call.conversation', 'conversation')
       .leftJoinAndSelect('call.participants', 'participant')
       .leftJoinAndSelect('participant.user', 'participantUser')
       .where('call.status IN (:...activeStatuses)', { activeStatuses })
+      .andWhere('call.conversation_id IS NULL')
       .andWhere((qb) => {
         const subQueryA = qb
           .subQuery()
@@ -416,5 +488,124 @@ export class CallsService {
       .getOne();
 
     return call ?? null;
+  }
+
+  private async createGroupCall(
+    initiator: User,
+    conversationId: number,
+    type: CallType,
+  ) {
+    const conversation = await this.conversationsRepository.findOne({
+      where: { id: conversationId },
+      relations: ['participants', 'participants.user'],
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Group conversation not found');
+    }
+
+    if (conversation.type !== ('group' as ConversationType)) {
+      throw new BadRequestException('Only group conversations can start group calls');
+    }
+
+    const initiatorParticipant = conversation.participants.find(
+      (participant) => participant.user.id === initiator.id,
+    );
+    if (!initiatorParticipant) {
+      throw new ForbiddenException('Only group members can start a group call');
+    }
+
+    const invitees = conversation.participants
+      .map((participant) => participant.user)
+      .filter((user) => user.id !== initiator.id);
+    if (!invitees.length) {
+      throw new BadRequestException('A group call requires at least one invitee');
+    }
+
+    const existingCall = await this.findActiveCallForConversation(conversation.id);
+    if (existingCall) {
+      throw new BadRequestException(
+        `An active group call already exists for this conversation (call ${existingCall.id})`,
+      );
+    }
+
+    const session = this.callSessionRepository.create({
+      initiator,
+      conversation,
+      type,
+      status: CallStatus.RINGING,
+    });
+    const savedSession = await this.callSessionRepository.save(session);
+
+    await this.callParticipantRepository.save([
+      this.callParticipantRepository.create({
+        call: savedSession,
+        user: initiator,
+        role: CallParticipantRole.CALLER,
+        status: CallParticipantStatus.ACCEPTED,
+      }),
+      ...invitees.map((user) =>
+        this.callParticipantRepository.create({
+          call: savedSession,
+          user,
+          role: CallParticipantRole.CALLEE,
+          status: CallParticipantStatus.INVITED,
+        }),
+      ),
+    ]);
+
+    const call = await this.getCallById(savedSession.id, initiator);
+    this.logger.log(
+      `Group call ${call.id} created by ${initiator.externalId} for conversation ${conversation.id} (${type})`,
+    );
+    return new CallResponseDto(call, initiator);
+  }
+
+  private shouldEndAcceptedCallAfterParticipantLeaves(
+    call: CallSession,
+    leavingUserId: number,
+  ) {
+    const acceptedAfterLeave = call.participants.filter((participant) => {
+      if (participant.user.id === leavingUserId) {
+        return false;
+      }
+
+      return participant.status === CallParticipantStatus.ACCEPTED;
+    });
+
+    return acceptedAfterLeave.length <= 1;
+  }
+
+  private shouldFinishGroupCallAfterParticipantExit(
+    call: CallSession,
+    exitingUserId: number,
+    nextStatus: CallParticipantStatus,
+  ) {
+    if (call.participants.length <= 2) {
+      return true;
+    }
+
+    return call.participants
+      .filter((participant) => participant.role === CallParticipantRole.CALLEE)
+      .every((participant) => {
+        const status =
+          participant.user.id === exitingUserId ? nextStatus : participant.status;
+        return [
+          CallParticipantStatus.REJECTED,
+          CallParticipantStatus.MISSED,
+          CallParticipantStatus.LEFT,
+        ].includes(status);
+      });
+  }
+
+  private async findActiveCallForConversation(conversationId: number) {
+    return this.callSessionRepository.findOne({
+      where: {
+        conversation: { id: conversationId },
+        status: In(ACTIVE_CALL_STATUSES),
+      },
+      relations: ['conversation'],
+      order: { updatedAt: 'DESC' },
+    });
   }
 }

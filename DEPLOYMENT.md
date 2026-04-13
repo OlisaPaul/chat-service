@@ -55,6 +55,27 @@ The compose setup:
 - runs migrations on app startup
 - serves the reference client from `/frontend/index.html`
 - stores uploads in `./storage/assets`
+- keeps Docker database bootstrap values separate from your host-local `MYSQL_*` settings
+
+Docker-specific environment note:
+
+- `MYSQL_*` can stay pointed at your host or cloud database for non-Docker development
+- `DOCKER_MYSQL_*` is what compose uses to initialize the MySQL container and to point the app container at that database
+- `DOCKER_REDIS_ENABLED=false` keeps the default Docker stack in single-node mode even if your host `.env` has Redis enabled
+- only enable Docker Redis-backed mode when you also start the `realtime` compose profile
+
+Docker validation checklist:
+
+1. `docker compose up --build`
+2. confirm MySQL becomes healthy
+3. confirm the app logs show DB wait, migration success, and application startup
+4. open `http://localhost:3001/frontend/index.html`
+5. sign in as `Alice`, `Bob`, and `Charlie`
+6. verify direct chat
+7. create and use a group conversation
+8. verify audio/video calling
+9. upload a file and confirm the asset URL resolves
+10. restart the app container and confirm uploaded assets still resolve
 
 Optional Redis profile:
 
@@ -107,6 +128,8 @@ Redis-backed mode is used for:
 - cross-instance Socket.IO room broadcasts
 - chat/call signaling across app instances
 
+Redis stays off in the default Docker stack unless you explicitly turn it on. Setting `REDIS_HOST` alone is not enough.
+
 ## Production Hardening Notes
 
 - `SOCKET_ADMIN_ENABLED=false` is the recommended default outside local debugging.
@@ -128,11 +151,15 @@ Use it to verify:
 - auth
 - realtime chat
 - uploads
-- audio calls
-- video calls
+- 1:1 audio/video calls
+- small group audio/video calls from existing group conversations
 
 ## Troubleshooting
 
+- `docker compose up` fails with `MYSQL_USER="root"`:
+  - your local `.env` is likely using `MYSQL_USER=root`
+  - compose now uses `DOCKER_MYSQL_*` to avoid this conflict
+  - if you customized them, confirm `DOCKER_MYSQL_USER` is not `root`
 - `401 Unauthorized` in the reference client:
   - confirm `JWT_SHARED_SECRET` still matches the built-in demo tokens
 - uploads not resolving:

@@ -131,7 +131,12 @@ describe('CallsGateway', () => {
       socket,
     );
 
-    expect(callsService.createCall).toHaveBeenCalledWith(alice, 2, CallType.AUDIO);
+    expect(callsService.createCall).toHaveBeenCalledWith(
+      alice,
+      2,
+      CallType.AUDIO,
+      undefined,
+    );
     expect(server.to).toHaveBeenCalledWith('user:appA:alice');
     expect(server.to).toHaveBeenCalledWith('user:appA:bob');
     expect(server.emit).toHaveBeenCalledWith('incoming_call', callDto);

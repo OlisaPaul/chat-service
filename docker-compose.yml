@@ -3,10 +3,10 @@ services:
     image: mysql:8.4
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${MYSQL_DB:-chatdb}
-      MYSQL_USER: ${MYSQL_USER:-chatuser}
-      MYSQL_PASSWORD: ${MYSQL_PASS:-chatpass}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DOCKER_MYSQL_DB:-chatdb}
+      MYSQL_USER: ${DOCKER_MYSQL_USER:-chatuser}
+      MYSQL_PASSWORD: ${DOCKER_MYSQL_PASS:-chatpass}
+      MYSQL_ROOT_PASSWORD: ${DOCKER_MYSQL_ROOT_PASSWORD:-rootpass}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -42,14 +42,27 @@ services:
       PORT: 3001
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
+      MYSQL_USER: ${DOCKER_MYSQL_USER:-chatuser}
+      MYSQL_PASS: ${DOCKER_MYSQL_PASS:-chatpass}
+      MYSQL_DB: ${DOCKER_MYSQL_DB:-chatdb}
       DB_SYNCHRONIZE: "false"
       UPLOAD_PATH: /app/storage/assets/chat/uploads
       ASSETS_PATH: /app/storage/assets
+      REDIS_ENABLED: ${DOCKER_REDIS_ENABLED:-false}
       REDIS_HOST: redis
     ports:
       - "3001:3001"
     volumes:
       - ./storage/assets:/app/storage/assets
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://127.0.0.1:3001/frontend/index.html', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
 
 volumes:
   mysql_data:

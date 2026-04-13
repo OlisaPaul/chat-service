@@ -69,6 +69,12 @@ export class CallResponseDto {
   @ApiProperty()
   initiatorId: number;
 
+  @ApiProperty({ required: false, nullable: true })
+  conversationId?: number | null;
+
+  @ApiProperty()
+  scope: 'private' | 'group';
+
   @ApiProperty({ type: CallInitiatorDto })
   initiator: CallInitiatorDto;
 
@@ -97,6 +103,8 @@ export class CallResponseDto {
     this.type = call.type;
     this.status = call.status;
     this.initiatorId = call.initiator.id;
+    this.conversationId = call.conversation?.id ?? null;
+    this.scope = call.conversation?.type === 'group' ? 'group' : 'private';
     this.initiator = {
       userId: call.initiator.id,
       externalId: call.initiator.externalId,

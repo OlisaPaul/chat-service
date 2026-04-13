@@ -9,6 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../entities/user.entity';
+import { Conversation } from '../entities/conversation.entity';
 import { CallParticipant } from './call-participant.entity';
 
 export enum CallType {
@@ -41,6 +42,10 @@ export class CallSession {
   @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'initiator_id' })
   initiator: User;
+
+  @ManyToOne(() => Conversation, { eager: true, nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'conversation_id' })
+  conversation?: Conversation | null;
 
   @OneToMany(() => CallParticipant, (participant) => participant.call, {
     cascade: true,

@@ -13,6 +13,7 @@ import {
 } from './call-participant.entity';
 import { CallSession, CallStatus, CallType } from './call-session.entity';
 import { User } from '../entities/user.entity';
+import { Conversation } from '../entities/conversation.entity';
 
 type MockRepository<T> = Partial<Record<keyof Repository<T>, jest.Mock>>;
 
@@ -70,10 +71,12 @@ describe('CallsService', () => {
   let callSessionRepository: MockRepository<CallSession>;
   let callParticipantRepository: MockRepository<CallParticipant>;
   let usersRepository: MockRepository<User>;
+  let conversationsRepository: MockRepository<Conversation>;
   let configService: ConfigService;
 
   const caller = createUser(1, 'appA:alice', 'Alice');
   const callee = createUser(2, 'appA:bob', 'Bob');
+  const charlie = createUser(3, 'appA:charlie', 'Charlie');
 
   beforeEach(() => {
     callSessionRepository = {
@@ -93,6 +96,9 @@ describe('CallsService', () => {
     usersRepository = {
       findOne: jest.fn(),
     };
+    conversationsRepository = {
+      findOne: jest.fn(),
+    };
 
     configService = {
       get: jest.fn((key: string) => {
@@ -110,6 +116,7 @@ describe('CallsService', () => {
       callSessionRepository as Repository<CallSession>,
       callParticipantRepository as Repository<CallParticipant>,
       usersRepository as Repository<User>,
+      conversationsRepository as Repository<Conversation>,
       configService,
     );
   });
@@ -161,6 +168,101 @@ describe('CallsService', () => {
     await expect(
       service.createCall(caller, callee.id, CallType.AUDIO),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('creates a group call from a group conversation and invites all other members', async () => {
+    const groupConversation = {
+      id: 44,
+      type: 'group',
+      name: 'Test group',
+      participants: [
+        { user: caller, role: 'admin' },
+        { user: callee, role: 'member' },
+        { user: charlie, role: 'member' },
+      ],
+    } as unknown as Conversation;
+    const createdSession = {
+      id: 45,
+      initiator: caller,
+      conversation: groupConversation,
+      type: CallType.VIDEO,
+      status: CallStatus.RINGING,
+    } as CallSession;
+    const groupCall = {
+      id: 45,
+      initiator: caller,
+      conversation: groupConversation,
+      type: CallType.VIDEO,
+      status: CallStatus.RINGING,
+      participants: [
+        {
+          id: 1,
+          user: caller,
+          role: CallParticipantRole.CALLER,
+          status: CallParticipantStatus.ACCEPTED,
+        },
+        {
+          id: 2,
+          user: callee,
+          role: CallParticipantRole.CALLEE,
+          status: CallParticipantStatus.INVITED,
+        },
+        {
+          id: 3,
+          user: charlie,
+          role: CallParticipantRole.CALLEE,
+          status: CallParticipantStatus.INVITED,
+        },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      startedAt: null,
+      endedAt: null,
+    } as CallSession;
+
+    (conversationsRepository.findOne as jest.Mock).mockResolvedValue(groupConversation);
+    (callSessionRepository.findOne as jest.Mock).mockResolvedValue(null);
+    (callSessionRepository.create as jest.Mock).mockReturnValue(createdSession);
+    (callSessionRepository.save as jest.Mock).mockResolvedValue(createdSession);
+    (callParticipantRepository.create as jest.Mock).mockImplementation((value) => value);
+    (callParticipantRepository.save as jest.Mock).mockResolvedValue(undefined);
+    (callParticipantRepository.findOne as jest.Mock).mockResolvedValue({
+      call: groupCall,
+    });
+
+    const result = await service.createCall(
+      caller,
+      undefined,
+      CallType.VIDEO,
+      groupConversation.id,
+    );
+
+    expect(conversationsRepository.findOne).toHaveBeenCalledWith({
+      where: { id: groupConversation.id },
+      relations: ['participants', 'participants.user'],
+    });
+    expect(callParticipantRepository.save).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          user: caller,
+          role: CallParticipantRole.CALLER,
+          status: CallParticipantStatus.ACCEPTED,
+        }),
+        expect.objectContaining({
+          user: callee,
+          role: CallParticipantRole.CALLEE,
+          status: CallParticipantStatus.INVITED,
+        }),
+        expect.objectContaining({
+          user: charlie,
+          role: CallParticipantRole.CALLEE,
+          status: CallParticipantStatus.INVITED,
+        }),
+      ]),
+    );
+    expect(result.scope).toBe('group');
+    expect(result.conversationId).toBe(groupConversation.id);
+    expect(result.participants).toHaveLength(3);
   });
 
   it('accepts a ringing call only for the invited callee', async () => {

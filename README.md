@@ -8,6 +8,7 @@ Self-hostable NestJS communication backend with:
 - file uploads
 - 1:1 audio calling
 - 1:1 video calling
+- small group audio/video calling
 - a browser-based reference client served by the backend
 - optional Redis-backed multi-instance realtime mode
 
@@ -23,6 +24,7 @@ The backend is the main product surface. The in-repo UI at [`/frontend/index.htm
 - uploads served from `/api/v1/assets/...`
 - persisted call sessions and call history
 - 1:1 audio/video calling through browser WebRTC signaling
+- group audio/video call lifecycle and small peer-to-peer mesh signaling from existing group conversations
 
 ## Stack
 
@@ -94,6 +96,18 @@ Docker notes:
 - the app runs migrations automatically on container startup
 - uploaded files are stored in `./storage/assets`
 - MySQL data is stored in the named volume `mysql_data`
+- Docker uses `DOCKER_MYSQL_*` values so your host-local `MYSQL_*` settings do not break container startup
+- Docker uses `DOCKER_REDIS_ENABLED=false` by default so Redis stays optional unless you explicitly opt into the realtime profile
+
+Docker validation path:
+
+1. Open `http://localhost:3001/frontend/index.html`
+2. Sign in as `Alice`, `Bob`, and `Charlie`
+3. Verify direct chat
+4. Create a group and verify group messaging
+5. Verify audio/video calling
+6. Upload a file and confirm the asset URL works
+7. Restart the app container and confirm uploaded assets still resolve
 
 ## Reference Client Flow
 
@@ -104,8 +118,8 @@ The supported validation path is:
 3. Send a direct message to confirm realtime chat works.
 4. Create a named group and send a group message.
 5. Add or remove a member from the group as the admin.
-6. Switch back to the direct chat and start an audio or video call.
-7. Accept in the other tab.
+6. Start a group audio or video call from the active group and accept it from the other group-member tabs.
+7. Switch back to the direct chat and start a 1:1 audio or video call.
 8. Confirm chat, group membership, call, and hang-up behavior.
 
 If you change `JWT_SHARED_SECRET`, the built-in Alice/Bob tokens in [`frontend/index.html`](C:\Users\DEEPIJA\Downloads\chat-service\frontend\index.html) will no longer authenticate.
@@ -175,6 +189,8 @@ Redis-backed mode enables:
 - cross-instance Socket.IO room/event delivery
 - consistent chat/call socket behavior when users hit different app instances
 
+Redis is only enabled when you explicitly set `REDIS_ENABLED=true` or provide a `REDIS_URL` without overriding the flag.
+
 ## Dev Tunnel
 
 For temporary remote-device testing, you can expose the backend and reference client through ngrok:
@@ -209,8 +225,8 @@ The command prints a `Remote test URL` that points to `/frontend/index.html` thr
 
 ## Current Limits
 
-- 1:1 calls only
-- group chat only; no group calling yet
+- group calls use a small peer-to-peer mesh in the reference client
+- larger production conferencing still needs a future SFU/media-server architecture
 - no recording
 - no SFU/media-server integration
 - reference client is intentionally minimal

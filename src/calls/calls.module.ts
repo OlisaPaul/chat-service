@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../entities/user.entity';
+import { Conversation } from '../entities/conversation.entity';
+import { ConversationParticipant } from '../entities/conversation-participant.entity';
 import { CallParticipant } from './call-participant.entity';
 import { CallsController } from './calls.controller';
 import { CallsGateway } from './calls.gateway';
@@ -13,7 +15,13 @@ import { PresenceModule } from '../presence/presence.module';
   imports: [
     AuthModule,
     PresenceModule,
-    TypeOrmModule.forFeature([CallSession, CallParticipant, User]),
+    TypeOrmModule.forFeature([
+      CallSession,
+      CallParticipant,
+      User,
+      Conversation,
+      ConversationParticipant,
+    ]),
   ],
   providers: [CallsService, CallsGateway],
   controllers: [CallsController],

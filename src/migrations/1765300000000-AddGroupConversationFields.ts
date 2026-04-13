@@ -6,6 +6,11 @@ export class AddGroupConversationFields1765300000000
   name = 'AddGroupConversationFields1765300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const hasConversationsTable = await queryRunner.hasTable('conversations');
+    if (!hasConversationsTable) {
+      return;
+    }
+
     const hasNameColumn = await queryRunner.hasColumn('conversations', 'name');
     if (!hasNameColumn) {
       await queryRunner.query(
@@ -19,6 +24,11 @@ export class AddGroupConversationFields1765300000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    const hasConversationsTable = await queryRunner.hasTable('conversations');
+    if (!hasConversationsTable) {
+      return;
+    }
+
     const hasNameColumn = await queryRunner.hasColumn('conversations', 'name');
     if (hasNameColumn) {
       await queryRunner.query(
